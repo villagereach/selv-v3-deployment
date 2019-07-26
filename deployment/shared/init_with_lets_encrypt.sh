@@ -46,7 +46,7 @@ then
         --force-renewal" service-configuration
 
     echo "Applying the newly generated certificates..."
-    docker exec -it nginx-tls nginx -s reload
+    docker exec nginx-tls nginx -s reload
 else
     echo "Using already existing certs"
 fi;
