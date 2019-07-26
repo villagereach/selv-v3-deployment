@@ -22,6 +22,6 @@ $DOCKER_COMPOSE_BIN kill &&
 $DOCKER_COMPOSE_BIN down -v --remove-orphans &&
 
 /usr/local/bin/docker-compose build &&
-#. $init_with_lets_encrypt_sh_path &&
+. $init_with_lets_encrypt_sh_path &&
 
 $DOCKER_COMPOSE_BIN up -d --scale scalyr=0
