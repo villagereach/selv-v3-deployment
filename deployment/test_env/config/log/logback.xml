@@ -1,0 +1,57 @@
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/base.xml" />
+  <property resource="application.properties" />
+
+  <!-- To see logback file with comments and descriptions, check dev_env/config/log/logback.xml -->
+  <appender name="SERVICE-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <prudent>true</prudent>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>/var/log/selv.${auth.resourceId}.%d.log</fileNamePattern>
+      <maxHistory>2</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>[%15.15thread] %level %logger %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="org.openlmis.auth" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.notification" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.referencedata" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.requisition" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.stockmanagement" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.fulfillment" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.report" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.cce" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.selv" level="WARN" additivity="false">
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <root level="WARN">
+    <appender-ref ref="SERVICE-FILE"/>
+  </root>
+</configuration>

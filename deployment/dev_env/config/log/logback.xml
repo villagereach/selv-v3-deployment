@@ -1,0 +1,90 @@
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/base.xml" />
+  <property resource="application.properties" />
+
+  <!-- Appender used to aggregate all logs into one file with specific fileName pattern. -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <prudent>true</prudent>
+    <!-- Policy that is used to rollover files. After each day logging will be switched to the new file, the old files will be kept for maxHistory days. -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>/var/log/selv.%d{yyyy-MM-dd}.log</fileNamePattern>
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>[%15.15thread] %level %logger %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Uncomment this appender and add the appender to loggers to get the logs on console when using docker logs command -->
+  <!-- <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>[%15.15thread] %level %logger %msg%n</pattern>
+    </encoder>
+  </appender> -->
+
+  <!-- Appender used to aggregate logs for each service for better filtering/finding desired logs. Each service will produce the file: selv.service-name.date-->
+  <appender name="SERVICE-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <prudent>true</prudent>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>/var/log/selv.${auth.resourceId}.%d.log</fileNamePattern>
+      <maxHistory>2</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>[%15.15thread] %level %logger %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- If you want to enable logs in the console, after uncommeting the STDOUT appender, and the following line to each logger below:
+       <appender-ref ref="STDOUT"/> -->
+  <logger name="org.openlmis.auth" level="WARN" additivity="false">
+    <!-- It is possible to define multiple appender-ref here. -->
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.notification" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.referencedata" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.requisition" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.stockmanagement" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.fulfillment" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.report" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.cce" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.selv" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
+  <!-- Define the root logger log level -->
+  <!-- Be careful to set this level to DEBUG because it will produce a lot logs  -->
+  <root level="WARN">
+    <appender-ref ref="SERVICE-FILE"/>
+  </root>
+</configuration>
