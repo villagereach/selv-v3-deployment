@@ -27,7 +27,7 @@ services:
     depends_on: [consul]
 
   reference-ui:
-    image: openlmisselv/selv-v3-ui:${SELV_V3_UI_VERSION}
+    image: openlmismz/selv-v3-ui:${SELV_V3_UI_VERSION}
     env_file: settings.env
     depends_on: [consul]
 
@@ -102,7 +102,7 @@ services:
     depends_on: [log]
 
   report:
-    image: openlmis/reports:${OL_REPORT_VERSION}
+    image: openlmis/report:${OL_REPORT_VERSION}
     env_file: settings.env
     environment:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'

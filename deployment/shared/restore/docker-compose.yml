@@ -1,7 +1,7 @@
 version: "2"
 services:
     rds-restore:
-        image: openlmisselv/rds-restore:1.0
+        image: openlmismz/rds-restore:1.0
         volumes:
             - restore-config:/external
         env_file: .env-restore
