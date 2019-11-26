@@ -102,7 +102,7 @@ services:
     depends_on: [log]
 
   report:
-    image: openlmis/reports:${OL_REPORT_VERSION}
+    image: openlmis/report:${OL_REPORT_VERSION}
     env_file: settings.env
     environment:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
