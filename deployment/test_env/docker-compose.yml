@@ -130,13 +130,17 @@ services:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
       spring_profiles_active: ${spring_profiles_active}
     volumes:
-      - 'syslog:/var/log'
       - 'service-config:/config'
+      - 'syslog:/var/log'
     depends_on: [log]
 
   db:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
+    volumes:
+        - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:5432"
     networks:
       default:
         aliases:
@@ -147,7 +151,9 @@ services:
     image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
     volumes:
       - 'syslog:/var/log'
-    depends_on: [service-configuration, consul]
+    depends_on:
+      - service-configuration
+      - consul
 
   scalyr:
     image: openlmis/scalyr
@@ -163,6 +169,7 @@ services:
     build:
       context: ./config
     volumes:
+      - 'syslog:/var/log'
       - 'service-config:/config'
 
   ftp:
@@ -186,3 +193,5 @@ volumes:
     external: false
   service-config:
     external: false
+  pgdata:
+    external: true

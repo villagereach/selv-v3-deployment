@@ -37,8 +37,8 @@ services:
     environment:
       JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
     volumes:
-      - 'service-config:/config'
       - 'syslog:/var/log'
+      - 'service-config:/config'
     depends_on: [log]
 
   referencedata:
@@ -107,8 +107,8 @@ services:
     environment:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
     volumes:
-      - 'service-config:/config'
       - 'syslog:/var/log'
+      - 'service-config:/config'
     depends_on: [log]
 
   hapifhir:
@@ -119,8 +119,8 @@ services:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
       spring_profiles_active: ${spring_profiles_active}
     volumes:
-      - 'service-config:/config'
       - 'syslog:/var/log'
+      - 'service-config:/config'
     depends_on: [log]
 
   diagnostics:
@@ -137,6 +137,10 @@ services:
   db:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
+    volumes:
+        - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:5432"
     networks:
       default:
         aliases:
@@ -165,7 +169,8 @@ services:
     build:
       context: ./config
     volumes:
-      - service-config:/config
+      - 'syslog:/var/log'
+      - 'service-config:/config'
 
   ftp:
     image: hauptmedia/proftpd
@@ -188,3 +193,5 @@ volumes:
     external: false
   service-config:
     external: false
+  pgdata:
+    external: true
