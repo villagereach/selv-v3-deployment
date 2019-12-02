@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-if [ -f backup_file.zip ]
+if [ -f backup_file.sql.zip ]
 then
-    unzip -o backup_file.zip
+    unzip -o backup_file.sql.zip
     /usr/local/bin/docker-compose down
 
     /usr/local/bin/docker start $POSTGRES_CONTAINER_NAME
