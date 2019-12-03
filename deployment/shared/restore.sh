@@ -2,20 +2,33 @@
 
 if [ -f backup_file.sql.zip ]
 then
-    FILE_COUNT = unzip -l backup_file.sql.zip | tail -1 | awk '{ print $2 }'
-    
+    DEFAULT_DATABASE_NAME='open_lmis'
+    DEFAULT_POSTGRES_CONTAINER_NAME='dev_env_db_1'
+    FILE_COUNT=`unzip -l backup_file.sql.zip | tail -1 | awk '{printf $2}'`
+
     if [ $FILE_COUNT > 1 ]
     then
         echo "More than one file in zip"
         exit 0;
     fi
-    echo "Restore database - ${DATABASE_NAME}"
-    echo "Container name - ${POSTGRES_CONTAINER_NAME}"
+
+    if [ -n  "$DATABASE_NAME" ]
+    then
+        echo "Setting the default value for database name - ${DATABASE_NAME}"
+        DATABASE_NAME=$DEFAULT_DATABASE_NAME
+    fi
+
+    if [ -n  "$POSTGRES_CONTAINER_NAME" ]
+    then
+        echo "Setting the default value for container name - ${POSTGRES_CONTAINER_NAME}"
+        POSTGRES_CONTAINER_NAME=$DEFAULT_POSTGRES_CONTAINER_NAME
+    fi
+
     unzip backup_file.sql.zip -d tmp_backup && mv tmp_backup/* "backup_file.sql"
     rm -d tmp_backup
     rm -f backup_file.sql.zip
 
-    sudo docker stop $(sudo docker ps -a -q)
+    sudo docker container stop $(sudo docker container ls -aq)
 
     sudo docker start $POSTGRES_CONTAINER_NAME
 
