@@ -6,7 +6,7 @@ then
     DEFAULT_POSTGRES_CONTAINER_NAME='dev_env_db_1'
     FILE_COUNT=`unzip -l backup_file.sql.zip | tail -1 | awk '{printf $2}'`
 
-    if [ $FILE_COUNT > 1 ]
+    if [ "$FILE_COUNT" -gt 1 ]
     then
         echo "More than one file in zip"
         exit 0;
