@@ -4,7 +4,7 @@ if [ -f backup_file.sql.zip ]
 then
     FILE_COUNT = unzip -l backup_file.sql.zip | tail -1 | awk '{ print $2 }'
     
-    if [ FILE_COUNT > 1 ]
+    if [ $FILE_COUNT > 1 ]
     then
         echo "More than one file in zip"
         exit 0;
