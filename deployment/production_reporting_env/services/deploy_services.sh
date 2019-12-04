@@ -2,19 +2,13 @@
 
 export DOCKER_TLS_VERIFY="1"
 export COMPOSE_TLS_VERSION=TLSv1_2
-export DOCKER_HOST="selv.reports.openlmis.org:2376"
-export DOCKER_CERT_PATH="${PWD}/../../../credentials/selv_reporting_env"
+export DOCKER_HOST="reporting.selv.openlmis.org:2376"
+export DOCKER_CERT_PATH="${PWD}/../../../credentials/production_reporting_env"
 export DOCKER_COMPOSE_BIN=/usr/local/bin/docker-compose
 
 export REPORTING_DIR_NAME=reporting
 
 distro_repo=$1
-
-# In order to avoid generated new certificates between next deploys of ReportingStack
-# we need to move them to seperate volume marked as external.
-# External volumes are not removed even we use docker-compose down with -v option.
-# The external volume need to be created before the docker start
-docker volume create letsencrypt-config
 
 cd "$distro_repo/$REPORTING_DIR_NAME" &&
 $DOCKER_COMPOSE_BIN kill &&
