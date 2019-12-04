@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export $(grep -v '^#' .env | xargs)
+export $(grep -v '^#' settings.env | xargs)
 set -e
 
 if [ -f backup_file.sql.zip ]
