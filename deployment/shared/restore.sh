@@ -21,8 +21,6 @@ then
     rm -d tmp_backup
     rm -f backup_file.sql.zip
 
-    echo "Containers list: "
-    docker container ls -aq
     echo "Docker host - $DOCKER_HOST"
     echo "POSTGRES_CONTAINER_NAME - $POSTGRES_CONTAINER_NAME"
     echo "DATABASE_NAME - $DATABASE_NAME"
