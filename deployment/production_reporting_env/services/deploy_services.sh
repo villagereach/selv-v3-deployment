@@ -14,6 +14,7 @@ cd "$distro_repo/$REPORTING_DIR_NAME" &&
 $DOCKER_COMPOSE_BIN kill &&
 $DOCKER_COMPOSE_BIN down -v --remove-orphans &&
 
+docker --version
 /usr/local/bin/docker-compose build &&
 
 $DOCKER_COMPOSE_BIN up -d --scale scalyr=0
