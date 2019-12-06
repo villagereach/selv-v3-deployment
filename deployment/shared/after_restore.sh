@@ -1,19 +1,19 @@
 #!/bin/bash
 
-export $(grep -v '^#' settings.env | xargs)
+export $(grep -v '^#' .env-restore | xargs)
 
 : ${POSTGRES_USER:?"Need to set POSTGRES_USER"}
 : ${POSTGRES_CONTAINER_NAME:?"POSTGRES_CONTAINER_NAME not set in environment"}
 : ${DATABASE_NAME:?"DATABASE_NAME not set in environment"}
 : ${ENCODED_USER_PASSWORD:?"Need to set ENCODED_USER_PASSWORD"}
-: ${auth.server.clientSecret:?"Need to set auth.server.clientSecret"}
-: ${auth.server.clientId:?"Need to set auth.server.clientId"}
-: ${AUTH_SERVER_CLIENT_SECRET:?"Need to set AUTH_SERVER_CLIENT_SECRET"}
-: ${AUTH_SERVER_CLIENT_ID:?"Need to set AUTH_SERVER_CLIENT_ID"}
+: ${SERVICE_CLIENT_ID:?"Need to set SERVICE_CLIENT_ID"}
+: ${SERVICE_CLIENT_SECRET:?"Need to set SERVICE_CLIENT_SECRET"}
+: ${CLIENT_SECRET:?"Need to set CLIENT_SECRET"}
+: ${CLIENT_USERNAME:?"Need to set CLIENT_USERNAME"}
 
 sql="UPDATE auth.auth_users SET password = '${ENCODED_USER_PASSWORD}';
 UPDATE notification.user_contact_details SET email = NULL;
-UPDATE auth.oauth_client_details SET clientsecret = '${auth.server.clientSecret}' WHERE clientid = '${auth.server.clientId}';
-UPDATE auth.oauth_client_details SET clientsecret = '${AUTH_SERVER_CLIENT_SECRET}' WHERE clientid = '${AUTH_SERVER_CLIENT_ID}';"
+UPDATE auth.oauth_client_details SET clientsecret = '${SERVICE_CLIENT_SECRET}' WHERE clientid = '${SERVICE_CLIENT_ID}';
+UPDATE auth.oauth_client_details SET clientsecret = '${CLIENT_SECRET}' WHERE clientid = '${CLIENT_USERNAME}';"
 
 docker exec -i $POSTGRES_CONTAINER_NAME psql -U $POSTGRES_USER -d $DATABASE_NAME -c "$sql"
