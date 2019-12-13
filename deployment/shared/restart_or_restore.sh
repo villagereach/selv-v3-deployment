@@ -18,6 +18,7 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
 elif [ "$KEEP_OR_WIPE" == "demodata" ]; then
     docker pull openlmis/demo-data
     /usr/bin/docker run --rm --env-file settings.env openlmis/demo-data
+    ../shared/restart.sh $1
 else
     ../shared/restart.sh $1
 fi
