@@ -15,6 +15,9 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
     ../shared/restore.sh
     ../shared/after_restore.sh
     rm -f ./.env-restore
+elif [ "$KEEP_OR_WIPE" == "demodata" ]; then
+    docker pull openlmis/demo-data
+    /usr/bin/docker run --rm --env-file settings.env openlmis/demo-data
 else
     ../shared/restart.sh $1
 fi
