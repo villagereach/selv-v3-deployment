@@ -10,6 +10,8 @@ export REPORTING_DIR_NAME=reporting
 
 distro_repo=$1
 
+docker volume create pgdata
+
 cd "$distro_repo/$REPORTING_DIR_NAME" &&
 $DOCKER_COMPOSE_BIN kill &&
 $DOCKER_COMPOSE_BIN down -v --remove-orphans &&
