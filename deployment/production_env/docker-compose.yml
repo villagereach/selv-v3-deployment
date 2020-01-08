@@ -102,7 +102,7 @@ services:
     depends_on: [log]
 
   equipment:
-    image: openlmis/equipment:${OL_EQUIPMENT_VERSION}
+    image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
     env_file: settings.env
     environment:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
