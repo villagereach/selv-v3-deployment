@@ -101,6 +101,16 @@ services:
       - 'service-config:/config'
     depends_on: [log]
 
+  equipment:
+    image: openlmis/equipment:${OL_EQUIPMENT_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+    volumes:
+      - 'syslog:/var/log'
+      - 'service-config:/config'
+    depends_on: [log]
+
   report:
     image: openlmis/report:${OL_REPORT_VERSION}
     env_file: settings.env

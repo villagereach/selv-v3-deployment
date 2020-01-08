@@ -64,6 +64,11 @@
     <appender-ref ref="SERVICE-FILE"/>
   </logger>
 
+  <logger name="org.openlmis.equipment" level="WARN" additivity="false">
+    <!-- <appender-ref ref="FILE"/> -->
+    <appender-ref ref="SERVICE-FILE"/>
+  </logger>
+
   <logger name="org.openlmis.selv" level="WARN" additivity="false">
     <appender-ref ref="FILE"/>
     <appender-ref ref="SERVICE-FILE"/>
