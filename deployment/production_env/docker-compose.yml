@@ -111,6 +111,16 @@ services:
       - 'service-config:/config'
     depends_on: [log]
 
+  requisition-batch:
+    image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+    volumes:
+      - 'syslog:/var/log'
+      - 'service-config:/config'
+    depends_on: [log]
+
   report:
     image: openlmismz/selv-v3-report:${OL_REPORT_VERSION}
     env_file: settings.env
