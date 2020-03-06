@@ -29,6 +29,7 @@ then
 
     docker start ${POSTGRES_CONTAINER_NAME}
 
+    docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "SELECT pg_drop_replication_slot('${DATABASE_NAME}');"
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE ${DATABASE_NAME};"
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "CREATE DATABASE ${DATABASE_NAME};"
 
