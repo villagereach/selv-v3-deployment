@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ "$KEEP_OR_WIPE" == "wipe" ]; then
-    export $(grep -v '^#' settings.env | xargs)
+    export $(grep -v '^#' settings.env | grep -v '.*=.* .*' | xargs)
     
     cp ../../credentials/${CREDENTIALS_SUB_DIRECTORY}/.env-restore ./.env-restore
 
