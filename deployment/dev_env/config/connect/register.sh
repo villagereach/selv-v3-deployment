@@ -29,7 +29,7 @@ for f in /config/connect/sink-*.json
 do
   echo -e "\n\nProcessing $f file..."
   mv $f temp.json
-  jq -r --arg dburl "$DATABASE_URL" --arg dbuser "$POSTGRES_USER" --arg dbpassword "$POSTGRES_PASSWORD" '.config["connection.url"] |= $dburl | .config["connection.user"] |= $dbuser | .config["connection.password"] |= $dbpassword' temp.json > $f
+  jq -r --arg dburl "$DATABASE_URL?stringtype=unspecified" --arg dbuser "$POSTGRES_USER" --arg dbpassword "$POSTGRES_PASSWORD" '.config["connection.url"] |= $dburl | .config["connection.user"] |= $dbuser | .config["connection.password"] |= $dbpassword' temp.json > $f
   rm temp.json
   curl -s -X POST -H "Accept:application/json" -H  "Content-Type:application/json" http://connect:8083/connectors/ -d @$f
 done

@@ -19,6 +19,6 @@
     "transforms.unwrap.delete.handling.mode": "none",
     "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
     "transforms.route.regex": "([^.]+)\\.([^.]+)\\.([^.]+)",
-    "transforms.route.replacement": "requisition.batch_$3"
+    "transforms.route.replacement": "requisitionbatch.batch_$3"
   }
 }

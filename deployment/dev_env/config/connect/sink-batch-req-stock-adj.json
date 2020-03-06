@@ -3,8 +3,8 @@
   "config": {
     "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
     "tasks.max": "1",
-    "topics": "requisition.batch_stock_adjustments",
-    "connection.url": "jdbc:postgresql://db:5432/open_lmis",
+    "topics": "requisitionbatch.batch_stock_adjustments",
+    "connection.url": "jdbc:postgresql://db:5432/open_lmis?stringtype=unspecified",
     "connection.user": "postgres",
     "connection.password": "p@ssw0rd",
     "auto.create": "true",
