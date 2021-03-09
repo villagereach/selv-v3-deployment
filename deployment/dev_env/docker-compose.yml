@@ -71,7 +71,7 @@ services:
       - 'service-config:/config'
     depends_on: [log]
   selv-v3-extensions:
-    image: openlmismz/selv-v3-extensions-config:${OL_SELV_V3_EXTENSION_VERSION}
+    image: openlmismz/selv-v3-extensions-config:0.0.1-SNAPSHOT
     volumes:
       - 'selv-v3-extensions:/extensions'
 
@@ -285,3 +285,5 @@ volumes:
     external: false
   pgdata:
     external: true
+  selv-v3-extensions:
+    external: false

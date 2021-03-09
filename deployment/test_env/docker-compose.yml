@@ -285,3 +285,5 @@ volumes:
     external: false
   pgdata:
     external: true
+  selv-v3-extensions:
+    external: false
