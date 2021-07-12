@@ -71,7 +71,7 @@ services:
       - 'service-config:/config'
     depends_on: [log]
   selv-v3-extensions:
-    image: openlmismz/selv-v3-extensions-config:1.0.0
+    image: openlmismz/selv-v3-extensions-config:1.0.2-SNAPSHOT
     volumes:
       - 'selv-v3-extensions:/extensions'
 
