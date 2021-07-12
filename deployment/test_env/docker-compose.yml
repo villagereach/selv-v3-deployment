@@ -70,10 +70,12 @@ services:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
-  selv-v3-extensions:
-    image: openlmismz/selv-v3-extensions-config:1.0.0
-    volumes:
-      - 'selv-v3-extensions:/extensions'
+    
+    # SELV3-353: Temporal extensions deactivation
+    # selv-v3-extensions:
+    # image: openlmismz/selv-v3-extensions-config:1.0.0
+    # volumes:
+    #  - 'selv-v3-extensions:/extensions'
 
   fulfillment:
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
@@ -81,7 +83,7 @@ services:
     environment:
       JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
     volumes:
-      - 'selv-v3-extensions:/extensions'
+      # - 'selv-v3-extensions:/extensions'
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
@@ -285,5 +287,5 @@ volumes:
     external: false
   pgdata:
     external: true
-  selv-v3-extensions:
-    external: false
+  # selv-v3-extensions:
+  #   external: false
