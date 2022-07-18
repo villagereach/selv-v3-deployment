@@ -90,7 +90,7 @@ services:
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
