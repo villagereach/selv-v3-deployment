@@ -35,41 +35,46 @@ services:
     image: openlmis/requisition:${OL_REQUISITION_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   referencedata:
     image: openlmis/referencedata:${OL_REFERENCEDATA_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   auth:
     image: openlmis/auth:${OL_AUTH_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   notification:
     image: openlmis/notification:${OL_NOTIFICATION_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
+
   selv-v3-extensions:
     image: openlmismz/selv-v3-extensions-config:1.0.0
     volumes:
@@ -85,32 +90,35 @@ services:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   stockmanagement:
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   cce:
     image: openlmis/cce:${OL_CCE_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   equipment:
     image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
@@ -120,44 +128,48 @@ services:
     image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   report:
     image: openlmismz/selv-v3-report:${OL_REPORT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   hapifhir:
     restart: always
     image: openlmis/hapifhir:${OL_HAPIFHIR_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
       spring_profiles_active: ${spring_profiles_active}
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    restart: on-failure
 
   diagnostics:
     image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
       spring_profiles_active: ${spring_profiles_active}
     volumes:
       - 'service-config:/config'
       - 'syslog:/var/log'
     depends_on: [log]
+    restart: on-failure
 
 ## Data-pumps related services are temporary disabled
 #  zookeeper:
