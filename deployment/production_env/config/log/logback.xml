@@ -24,6 +24,17 @@
     </encoder>
   </appender>
 
+  <appender name="DEBUG-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <prudent>true</prudent>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>/var/log/selv.debug-timeout.%d.log</fileNamePattern>
+      <maxHistory>2</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>[%15.15thread] %level %logger %msg%n</pattern>
+    </encoder>
+  </appender>
+
   <logger name="org.openlmis.auth" level="WARN" additivity="false">
     <appender-ref ref="SERVICE-FILE"/>
     <appender-ref ref="FILE"/>
@@ -73,6 +84,18 @@
     <appender-ref ref="FILE"/>
     <appender-ref ref="SERVICE-FILE"/>
   </logger>
+
+  <!-- Debug timeouts -->
+  <logger name="org.openlmis.fulfillment.web.shipment" level="DEBUG">
+    <appender-ref ref="FILE"/>
+    <appender-ref ref="DEBUG-FILE"/>
+  </logger>
+
+  <logger name="org.openlmis.stockmanagement.web.StockEventsController" level="DEBUG">
+    <appender-ref ref="FILE"/>
+    <appender-ref ref="DEBUG-FILE"/>
+  </logger>
+
 
   <!-- Define the root logger log level -->
   <root level="WARN">
