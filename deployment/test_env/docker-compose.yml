@@ -136,6 +136,16 @@ services:
       - 'service-config:/config'
     depends_on: [log]
 
+  dhis2-integration:
+    image: openlmismz/selv-v3-dhis2-integration:${OL_DHIS2_INTEGRATION_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+    volumes:
+      - 'syslog:/var/log'
+      - 'service-config:/config'
+    depends_on: [ log ]
+
   hapifhir:
     restart: always
     image: openlmis/hapifhir:${OL_HAPIFHIR_VERSION}
