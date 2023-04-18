@@ -1,5 +1,4 @@
 version: "3.3"
-services:
 
 x-logging:
   &default-logging
@@ -8,6 +7,7 @@ x-logging:
     max-size: "50m"
     max-file: "7"
 
+services:
   consul:
     command: -server -bootstrap
     image: gliderlabs/consul-server
