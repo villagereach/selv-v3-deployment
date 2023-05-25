@@ -9,7 +9,7 @@ services:
       - "8400"
       - "8500:8500"
       - "53"
-    logging:
+    logging: &logging
       driver: json-file
       options:
         max-size: "50m"
@@ -31,20 +31,14 @@ services:
       - 'service-config:/config'
     depends_on: [consul]
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
     
   reference-ui:
     image: openlmismz/selv-v3-production-ui:${SELV_V3_UI_VERSION}
     env_file: settings.env
     depends_on: [consul]
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   requisition:
     image: openlmis/requisition:${OL_REQUISITION_VERSION}
@@ -56,10 +50,7 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
     restart: on-failure
 
   referencedata:
@@ -73,10 +64,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   auth:
     image: openlmis/auth:${OL_AUTH_VERSION}
@@ -89,10 +77,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   notification:
     image: openlmis/notification:${OL_NOTIFICATION_VERSION}
@@ -105,20 +90,14 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   selv-v3-extensions:
     image: openlmismz/selv-v3-extensions-config:1.0.0
     volumes:
       - 'selv-v3-extensions:/extensions'
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   fulfillment:
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
@@ -132,10 +111,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   stockmanagement:
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
@@ -148,10 +124,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   cce:
     image: openlmis/cce:${OL_CCE_VERSION}
@@ -164,10 +137,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   equipment:
     image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
@@ -179,10 +149,7 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   requisition-batch:
     image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
@@ -195,10 +162,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   report:
     image: openlmismz/selv-v3-report:${OL_REPORT_VERSION}
@@ -211,10 +175,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   hapifhir:
     restart: always
@@ -229,10 +190,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   diagnostics:
     image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
@@ -246,10 +204,7 @@ services:
     depends_on: [log]
     restart: on-failure
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
 ## Data-pumps related services are temporary disabled
 #  zookeeper:
@@ -329,10 +284,7 @@ services:
           - olmis-db
     depends_on: [consul]
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   log:
     image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
@@ -342,10 +294,7 @@ services:
       - service-configuration
       - consul
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   scalyr:
     image: openlmis/scalyr:${OL_SCALYR_AGENT_VERSION}
@@ -357,10 +306,7 @@ services:
       - 'syslog:/var/log'
       - 'nginx-log:/var/log/nginx/log'
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   service-configuration:
     build:
@@ -369,10 +315,7 @@ services:
       - 'syslog:/var/log'
       - 'service-config:/config'
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   ftp:
     image: hauptmedia/proftpd
@@ -382,19 +325,12 @@ services:
     env_file: settings.env
     depends_on: [consul]
     logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+      <<: *logging
 
   redis:
     image: redis:3.2.12
     depends_on: [consul]
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "7"
+    
 
 volumes:
   syslog:
