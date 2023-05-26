@@ -1,6 +1,6 @@
 version: "3.3"
-services:
 
+services:
   consul:
     command: -server -bootstrap
     image: gliderlabs/consul-server
@@ -9,6 +9,11 @@ services:
       - "8400"
       - "8500:8500"
       - "53"
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "7"
 
   nginx:
     image: openlmis/nginx:${OL_NGINX_VERSION}
@@ -25,11 +30,15 @@ services:
       - 'consul-template-log:/var/log/consul-template'
       - 'service-config:/config'
     depends_on: [consul]
-
+    logging:
+      <<: *logging
+    
   reference-ui:
     image: openlmismz/selv-v3-production-ui:${SELV_V3_UI_VERSION}
     env_file: settings.env
     depends_on: [consul]
+    logging:
+      <<: *logging
 
   requisition:
     image: openlmis/requisition:${OL_REQUISITION_VERSION}
@@ -40,6 +49,8 @@ services:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    logging:
+      <<: *logging
     restart: on-failure
 
   referencedata:
@@ -52,6 +63,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   auth:
     image: openlmis/auth:${OL_AUTH_VERSION}
@@ -63,6 +76,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   notification:
     image: openlmis/notification:${OL_NOTIFICATION_VERSION}
@@ -74,11 +89,15 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   selv-v3-extensions:
     image: openlmismz/selv-v3-extensions-config:1.0.0
     volumes:
       - 'selv-v3-extensions:/extensions'
+    logging:
+      <<: *logging
 
   fulfillment:
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
@@ -91,6 +110,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   stockmanagement:
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
@@ -102,6 +123,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   cce:
     image: openlmis/cce:${OL_CCE_VERSION}
@@ -113,6 +136,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   equipment:
     image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
@@ -123,6 +148,8 @@ services:
       - 'syslog:/var/log'
       - 'service-config:/config'
     depends_on: [log]
+    logging:
+      <<: *logging
 
   requisition-batch:
     image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
@@ -134,6 +161,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   report:
     image: openlmismz/selv-v3-report:${OL_REPORT_VERSION}
@@ -145,6 +174,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   hapifhir:
     restart: always
@@ -158,6 +189,8 @@ services:
       - 'service-config:/config'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
   diagnostics:
     image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
@@ -170,6 +203,8 @@ services:
       - 'syslog:/var/log'
     depends_on: [log]
     restart: on-failure
+    logging:
+      <<: *logging
 
 ## Data-pumps related services are temporary disabled
 #  zookeeper:
@@ -248,6 +283,8 @@ services:
         aliases:
           - olmis-db
     depends_on: [consul]
+    logging:
+      <<: *logging
 
   log:
     image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
@@ -256,6 +293,8 @@ services:
     depends_on:
       - service-configuration
       - consul
+    logging:
+      <<: *logging
 
   scalyr:
     image: openlmis/scalyr:${OL_SCALYR_AGENT_VERSION}
@@ -266,6 +305,8 @@ services:
       - '/var/run/docker.sock:/var/scalyr/docker.sock'
       - 'syslog:/var/log'
       - 'nginx-log:/var/log/nginx/log'
+    logging:
+      <<: *logging
 
   service-configuration:
     build:
@@ -273,6 +314,8 @@ services:
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
+    logging:
+      <<: *logging
 
   ftp:
     image: hauptmedia/proftpd
@@ -281,10 +324,13 @@ services:
       - "${OL_FTP_PORT_20:-20}:20"
     env_file: settings.env
     depends_on: [consul]
+    logging:
+      <<: *logging
 
   redis:
     image: redis:3.2.12
     depends_on: [consul]
+    
 
 volumes:
   syslog:
