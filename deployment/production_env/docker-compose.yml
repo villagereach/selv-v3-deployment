@@ -206,6 +206,20 @@ services:
     logging:
       <<: *logging
 
+  buq:
+    restart: always
+    image: openlmis/buq:${OL_BUQ_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      spring_profiles_active: ${spring_profiles_active}
+    volumes:
+      - 'service-config:/config'
+      - 'syslog:/var/log'
+    depends_on: [log]
+    logging:
+      <<: *logging
+
 ## Data-pumps related services are temporary disabled
 #  zookeeper:
 #    image: confluentinc/cp-zookeeper:${OL_CONFLUENT_VERSION}
