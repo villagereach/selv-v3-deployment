@@ -57,7 +57,7 @@ services:
     image: openlmis/referencedata:${OL_REFERENCEDATA_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx1536m -Dlogging.config=/config/log/logback.xml'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
@@ -69,7 +69,7 @@ services:
     image: openlmis/auth:${OL_AUTH_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
@@ -97,7 +97,7 @@ services:
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
     volumes:
       - 'selv-v3-extensions:/extensions'
       - 'syslog:/var/log'
@@ -110,7 +110,7 @@ services:
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml'
     volumes:
       - 'syslog:/var/log'
       - 'service-config:/config'
