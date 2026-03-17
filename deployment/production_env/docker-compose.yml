@@ -32,7 +32,7 @@ services:
     depends_on: [consul]
     logging:
       <<: *logging
-    
+
   reference-ui:
     image: openlmismz/selv-v3-production-ui:${SELV_V3_UI_VERSION}
     env_file: settings.env
@@ -165,7 +165,7 @@ services:
       <<: *logging
 
   report:
-    image: openlmismz/selv-v3-report:${OL_REPORT_VERSION}
+    image: openlmismz/selv-v3-report:${SELV_V3_REPORT_VERSION}
     env_file: settings.env
     environment:
       JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml -XX:+CrashOnOutOfMemoryError'
@@ -355,7 +355,6 @@ services:
   redis:
     image: redis:3.2.12
     depends_on: [consul]
-    
 
 volumes:
   syslog:
