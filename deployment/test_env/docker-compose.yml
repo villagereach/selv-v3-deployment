@@ -200,7 +200,6 @@ services:
     logging:
       <<: *logging
 
-
   auth:
     restart: always
     image: openlmis/auth:${OL_AUTH_VERSION}
@@ -308,11 +307,11 @@ services:
         condition: service_healthy
       log:
         condition: service_started
-#    healthcheck:
-#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-#      interval: 30s
-#      timeout: 5s
-#      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
