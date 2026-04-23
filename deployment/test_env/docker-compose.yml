@@ -1,20 +1,92 @@
-version: "3.3"
-
 services:
 
+  service-configuration:
+    build:
+      context: ./config
+    volumes:
+      - syslog:/var/log
+      - service-config:/config
+
+  selv-v3-extensions:
+    image: openlmismz/selv-v3-extensions-config:${OL_SELV_V3_EXTENSION_VERSION}
+    volumes:
+      - selv-v3-extensions:/extensions
+
   consul:
-    command: -server -bootstrap
-    image: gliderlabs/consul-server
+    image: hashicorp/consul:${OL_CONSUL_VERSION}
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    environment:
+      CONSUL_BIND_INTERFACE: eth0
     ports:
-      - "8300"
-      - "8400"
+      - "8300:8300"
       - "8500:8500"
-      - "53"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8500/v1/status/leader"]
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging: &logging
       driver: json-file
       options:
         max-size: "50m"
         max-file: "7"
+
+  db:
+    image: openlmis/postgres:${OL_POSTGRES_VERSION}
+    env_file: settings.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases:
+          - olmis-db
+    depends_on:
+      consul:
+        condition: service_healthy
+    logging:
+      <<: *logging
+
+  log:
+    restart: always
+    image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
+    volumes:
+      - syslog:/var/log
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+    logging:
+      <<: *logging
+
+  scalyr:
+    restart: always
+    image: openlmis/scalyr:${OL_SCALYR_AGENT_VERSION}
+    container_name: scalyr-agent
+    env_file: settings.env
+    volumes:
+      - service-config:/config
+      - /run/docker.sock:/var/scalyr/docker.sock
+      - syslog:/var/log
+      - nginx-log:/var/log/nginx/log
+      - auth-tomcat-log:/var/log/auth-tomcat
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+    logging:
+      <<: *logging
+
+  redis:
+    image: redis:3.2.12
+    depends_on:
+      consul:
+        condition: service_healthy
 
   nginx:
     image: openlmis/nginx:${OL_NGINX_VERSION}
@@ -27,131 +99,219 @@ services:
     environment:
       NGINX_LOG_DIR: '/var/log/nginx/log'
     volumes:
-      - 'nginx-log:/var/log/nginx/log'
-      - 'consul-template-log:/var/log/consul-template'
-      - 'service-config:/config'
-    depends_on: [consul]
+      - nginx-log:/var/log/nginx/log
+      - consul-template-log:/var/log/consul-template
+      - service-config:/config
+    depends_on:
+      consul:
+        condition: service_healthy
+    ulimits:
+      nofile:
+        soft: 20000
+        hard: 40000
     logging:
       <<: *logging
 
   reference-ui:
     image: openlmismz/selv-v3-ui:${SELV_V3_UI_VERSION}
     env_file: settings.env
-    depends_on: [consul]
+    depends_on:
+      consul:
+        condition: service_healthy
+      # Services from which data is being taken during logging in
+      referencedata:
+        condition: service_healthy
+#      auth:
+#        condition: service_healthy
+#      notification:
+#        condition: service_healthy
+#      report:
+#        condition: service_healthy
+#      fulfillment:
+#        condition: service_healthy
+      stockmanagement:
+        condition: service_healthy
     logging:
       <<: *logging
 
+  ftp:
+    image: driesva/proftpd
+    ports:
+      - "${OL_FTP_PORT_21:-21}:21"
+      - "${OL_FTP_PORT_20:-20}:20"
+    env_file: settings.env
+    depends_on:
+      consul:
+        condition: service_healthy
+
   requisition:
+    restart: always
     image: openlmis/requisition:${OL_REQUISITION_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms1024m
+        -Xmx1024m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+#    healthcheck:
+#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+#      interval: 30s
+#      timeout: 5s
+#      retries: 20
     logging:
       <<: *logging
 
   referencedata:
+    restart: always
     image: openlmis/referencedata:${OL_REFERENCEDATA_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1536m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms1536m
+        -Xmx1536m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
   auth:
+    restart: always
     image: openlmis/auth:${OL_AUTH_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms1024m
+        -Xmx1024m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+#    healthcheck:
+#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+#      interval: 30s
+#      timeout: 5s
+#      retries: 20
     logging:
       <<: *logging
 
   notification:
+    restart: always
     image: openlmis/notification:${OL_NOTIFICATION_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+#    healthcheck:
+#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+#      interval: 30s
+#      timeout: 5s
+#      retries: 20
     logging:
       <<: *logging
 
-  selv-v3-extensions:
-    image: openlmismz/selv-v3-extensions-config:${OL_SELV_V3_EXTENSION_VERSION}
-    volumes:
-      - 'selv-v3-extensions:/extensions'
-
   fulfillment:
+    restart: always
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx1024m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms1024m
+        -Xmx1024m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'selv-v3-extensions:/extensions'
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+      - selv-v3-extensions:/extensions
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      selv-v3-extensions:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+#    healthcheck:
+#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+#      interval: 30s
+#      timeout: 5s
+#      retries: 20
     logging:
       <<: *logging
 
   stockmanagement:
+    restart: always
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms2048m
+        -Xmx2048m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
-    logging:
-      <<: *logging
-
-  cce:
-    image: openlmis/cce:${OL_CCE_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-    volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
-    logging:
-      <<: *logging
-
-  equipment:
-    image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-    volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
-    logging:
-      <<: *logging
-
-  requisition-batch:
-    image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-    volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
@@ -159,50 +319,49 @@ services:
     image: openlmismz/selv-v3-report:${SELV_V3_REPORT_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx2048m -Dlogging.config=/config/log/logback.xml'
+      JAVA_OPTS: >-
+        -Xms2048m
+        -Xmx2048m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+#    healthcheck:
+#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+#      interval: 30s
+#      timeout: 5s
+#      retries: 20
     logging:
       <<: *logging
 
-  dhis2-integration:
-    image: openlmismz/selv-v3-dhis2-integration:${OL_DHIS2_INTEGRATION_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-    volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [ log ]
-    logging:
-      <<: *logging
-
-  hapifhir:
+  cce:
     restart: always
-    image: openlmis/hapifhir:${OL_HAPIFHIR_VERSION}
+    image: openlmis/cce:${OL_CCE_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-      spring_profiles_active: ${spring_profiles_active}
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
-    logging:
-      <<: *logging
-
-  diagnostics:
-    image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-      spring_profiles_active: ${spring_profiles_active}
-    volumes:
-      - 'service-config:/config'
-      - 'syslog:/var/log'
-    depends_on: [log]
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
     logging:
       <<: *logging
 
@@ -211,148 +370,145 @@ services:
     image: openlmis/buq:${OL_BUQ_VERSION}
     env_file: settings.env
     environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-      spring_profiles_active: ${spring_profiles_active}
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'service-config:/config'
-      - 'syslog:/var/log'
-    depends_on: [log]
-    logging:
-      <<: *logging
-
-## Data-pumps related services are temporary disabled
-#  zookeeper:
-#    image: confluentinc/cp-zookeeper:${OL_CONFLUENT_VERSION}
-#    environment:
-#      - ZOOKEEPER_CLIENT_PORT=32181
-#      - ZOOKEEPER_TICK_TIME=2000
-#      - ZOOKEEPER_SYNC_LIMIT=2
-#
-#  kafka:
-#    image: confluentinc/cp-kafka:${OL_CONFLUENT_VERSION}
-#    environment:
-#      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
-#      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092
-#      - KAFKA_BROKER_ID=2
-#      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-#      - KAFKA_LOG_CLEANER_ENABLE=true
-#    hostname: kafka
-#    volumes:
-#      - service-config:/config
-#    depends_on: [service-configuration, zookeeper]
-#
-#  connect:
-#    image: openlmis/debezium-connect
-#    ports:
-#      - 8083:8083
-#    environment:
-#     - BOOTSTRAP_SERVERS=kafka:29092
-#     - GROUP_ID=1
-#     - CONFIG_STORAGE_TOPIC=my_connect_configs
-#     - OFFSET_STORAGE_TOPIC=my_connect_offsets
-#     - HOST_NAME=0.0.0.0
-#    depends_on: [kafka]
-#
-#  connect-reg:
-#    image: openlmis/toolbelt
-#    env_file: settings.env
-#    volumes:
-#      - service-config:/config
-#    entrypoint: >
-#      bash -c "/config/connect/register.sh"
-#    depends_on: [connect]
-#
-#  kafka-rest:
-#    image: confluentinc/cp-kafka-rest:${OL_CONFLUENT_VERSION}
-#    environment:
-#     - KAFKA_REST_ZOOKEEPER_CONNECT=zookeeper:32181
-#     - KAFKA_REST_BOOTSTRAP_SERVERS=PLAINTEXT://kafka:29092
-#     - KAFKA_REST_HOST_NAME=kafka-rest
-#     - KAFKA_REST_LISTENERS=http://0.0.0.0:8082
-#     - KAFKA_REST_CONSUMER_REQUEST_TIMEOUT_MS=30000
-#     - KAFKA_REST_ACCESS_CONTROL_ALLOW_METHODS=GET,POST,PUT,DELETE,OPTIONS
-#     - KAFKA_REST_ACCESS_CONTROL_ALLOW_ORIGIN=*
-#    depends_on: [kafka]
-#
-#  kafka-topics-ui:
-#    image: landoop/kafka-topics-ui
-#    hostname: topics_ui
-#    ports:
-#      - 8000:8000
-#    environment:
-#      - KAFKA_REST_PROXY_URL=http://kafka-rest:8082
-#      - PROXY=true
-#      - MAX_BYTES=500000
-#    depends_on: [kafka-rest]
-
-  db:
-    image: openlmis/postgres:${OL_POSTGRES_VERSION}
-    env_file: settings.env
-    volumes:
-        - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      default:
-        aliases:
-          - olmis-db
-    depends_on: [consul]
-    logging:
-      <<: *logging
-
-  log:
-    image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
-    volumes:
-      - 'syslog:/var/log'
+      - syslog:/var/log
+      - service-config:/config:ro
     depends_on:
-      - service-configuration
-      - consul
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
     logging:
       <<: *logging
 
-  scalyr:
-    image: openlmis/scalyr:${OL_SCALYR_AGENT_VERSION}
-    container_name: scalyr-agent
+  hapifhir:
+    restart: always
+    image: openlmis/hapifhir:${OL_HAPIFHIR_VERSION}
     env_file: settings.env
+    environment:
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
     volumes:
-      - 'service-config:/config'
-      - '/var/run/docker.sock:/var/scalyr/docker.sock'
-      - 'syslog:/var/log'
-      - 'nginx-log:/var/log/nginx/log'
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
     logging:
       <<: *logging
 
-  service-configuration:
-    build:
-      context: ./config
-    volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    logging:
-      <<: *logging
-
-  ftp:
-    image: hauptmedia/proftpd
-    ports:
-      - "${OL_FTP_PORT_21:-21}:21"
-      - "${OL_FTP_PORT_20:-20}:20"
+  diagnostics:
+    restart: always
+    image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
     env_file: settings.env
-    depends_on: [consul]
+    environment:
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
+    volumes:
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+    logging:
+      <<: *logging
 
-  redis:
-    image: redis:3.2.12
-    depends_on: [consul]
+  # SELV-specific
+
+  dhis2-integration:
+    restart: always
+    image: openlmismz/selv-v3-dhis2-integration:${OL_DHIS2_INTEGRATION_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
+    volumes:
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+    logging:
+      <<: *logging
+
+  equipment:
+    image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
+    volumes:
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+    logging:
+      <<: *logging
+
+  requisition-batch:
+    image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
+    env_file: settings.env
+    environment:
+      JAVA_OPTS: >-
+        -Xms512m
+        -Xmx512m
+        -Djava.security.egd=file:/dev/./urandom
+        -Dlogging.config=/config/log/logback.xml
+    volumes:
+      - syslog:/var/log
+      - service-config:/config:ro
+    depends_on:
+      service-configuration:
+        condition: service_completed_successfully
+      consul:
+        condition: service_healthy
+      log:
+        condition: service_started
+    logging:
+      <<: *logging
 
 volumes:
-  syslog:
-    external: false
-  nginx-log:
-    external: false
-  consul-template-log:
-    external: false
   service-config:
-    external: false
+  syslog:
+  nginx-log:
+  auth-tomcat-log:
+  consul-template-log:
+  selv-v3-extensions:
   pgdata:
     external: true
-  selv-v3-extensions:
-    external: false
