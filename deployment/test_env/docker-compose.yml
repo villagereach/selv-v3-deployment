@@ -10,7 +10,8 @@ services:
   selv-v3-extensions:
     image: openlmismz/selv-v3-extensions-config:${OL_SELV_V3_EXTENSION_VERSION}
     volumes:
-      - selv-v3-extensions:/extensions
+      - selv-v3-extensions-stockmanagement:/extensions-stockmanagement
+      - selv-v3-extensions-fulfillment:/extensions-fulfillment
 
   consul:
     image: hashicorp/consul:${OL_CONSUL_VERSION}
@@ -269,7 +270,7 @@ services:
     volumes:
       - syslog:/var/log
       - service-config:/config:ro
-      - selv-v3-extensions:/extensions
+      - selv-v3-extensions-fulfillment:/extensions
     depends_on:
       service-configuration:
         condition: service_completed_successfully
@@ -300,8 +301,11 @@ services:
     volumes:
       - syslog:/var/log
       - service-config:/config:ro
+      - selv-v3-extensions-stockmanagement:/extensions
     depends_on:
       service-configuration:
+        condition: service_completed_successfully
+      selv-v3-extensions:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
@@ -509,6 +513,7 @@ volumes:
   nginx-log:
   auth-tomcat-log:
   consul-template-log:
-  selv-v3-extensions:
+  selv-v3-extensions-stockmanagement:
+  selv-v3-extensions-fulfillment:
   pgdata:
     external: true
