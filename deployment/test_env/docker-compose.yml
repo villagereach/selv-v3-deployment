@@ -144,6 +144,8 @@ services:
     depends_on:
       consul:
         condition: service_healthy
+    logging:
+      <<: *logging
 
   requisition:
     restart: always
