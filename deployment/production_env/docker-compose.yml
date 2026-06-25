@@ -37,6 +37,7 @@ services:
   db:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
+    command: postgres -c max_connections=500
     ports:
       - "5432:5432"
     volumes:
