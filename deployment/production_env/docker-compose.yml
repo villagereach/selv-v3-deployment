@@ -38,7 +38,7 @@ services:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
     # Predefined container name for scripts located on the server to refresh materialized views
-    container_name: production_env_db
+    container_name: production_env_db_1
     command: postgres -c max_connections=500
     ports:
       - "5432:5432"

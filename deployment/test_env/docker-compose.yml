@@ -37,7 +37,7 @@ services:
   db:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
-    container_name: test_env_db
+    container_name: test_env_db_1
     command: postgres -c max_connections=500
     ports:
       - "5432:5432"

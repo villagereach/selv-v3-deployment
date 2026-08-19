@@ -261,6 +261,7 @@ services:
   db:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
+    container_name: dev_env_db_1
     volumes:
         - pgdata:/var/lib/postgresql/data
     ports:
