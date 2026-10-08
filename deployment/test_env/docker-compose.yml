@@ -124,14 +124,14 @@ services:
       # Services from which data is being taken during logging in
       referencedata:
         condition: service_healthy
-#      auth:
-#        condition: service_healthy
-#      notification:
-#        condition: service_healthy
-#      report:
-#        condition: service_healthy
-#      fulfillment:
-#        condition: service_healthy
+      auth:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+      report:
+        condition: service_healthy
+      fulfillment:
+        condition: service_healthy
       stockmanagement:
         condition: service_healthy
     logging:
@@ -169,11 +169,11 @@ services:
         condition: service_healthy
       log:
         condition: service_started
-#    healthcheck:
-#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-#      interval: 30s
-#      timeout: 5s
-#      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
@@ -225,11 +225,11 @@ services:
         condition: service_healthy
       log:
         condition: service_started
-#    healthcheck:
-#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-#      interval: 30s
-#      timeout: 5s
-#      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
@@ -253,11 +253,11 @@ services:
         condition: service_healthy
       log:
         condition: service_started
-#    healthcheck:
-#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-#      interval: 30s
-#      timeout: 5s
-#      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
@@ -284,11 +284,11 @@ services:
         condition: service_healthy
       log:
         condition: service_started
-#    healthcheck:
-#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-#      interval: 30s
-#      timeout: 5s
-#      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
@@ -342,11 +342,11 @@ services:
         condition: service_healthy
       log:
         condition: service_started
-#    healthcheck:
-#      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-#      interval: 30s
-#      timeout: 5s
-#      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
@@ -447,28 +447,6 @@ services:
   dhis2-integration:
     restart: always
     image: openlmismz/selv-v3-dhis2-integration:${OL_DHIS2_INTEGRATION_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: >-
-        -Xms512m
-        -Xmx512m
-        -Djava.security.egd=file:/dev/./urandom
-        -Dlogging.config=/config/log/logback.xml
-    volumes:
-      - syslog:/var/log
-      - service-config:/config:ro
-    depends_on:
-      service-configuration:
-        condition: service_completed_successfully
-      consul:
-        condition: service_healthy
-      log:
-        condition: service_started
-    logging:
-      <<: *logging
-
-  equipment:
-    image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
     env_file: settings.env
     environment:
       JAVA_OPTS: >-

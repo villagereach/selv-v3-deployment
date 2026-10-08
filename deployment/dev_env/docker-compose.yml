@@ -130,18 +130,6 @@ services:
     logging:
       <<: *logging
 
-  equipment:
-    image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: '-server -Xmx512m -Dlogging.config=/config/log/logback.xml'
-    volumes:
-      - 'syslog:/var/log'
-      - 'service-config:/config'
-    depends_on: [log]
-    logging:
-      <<: *logging
-
   requisition-batch:
     image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
     env_file: settings.env
