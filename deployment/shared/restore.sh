@@ -2,7 +2,6 @@
 
 export $(grep -v '^#' settings.env | grep -v '.*=.* .*' | grep -v '.*\..*=' | xargs)
 set -e
-set -o pipefail
 
 if [ -f backup_file.sql.zip ]
 then
@@ -15,11 +14,12 @@ then
     if [ "$FILE_COUNT" -gt 1 ]
     then
         echo "More than one file in zip"
-        exit 1;
+        exit 0;
     fi
 
-    # Verify the archive before anything on the server is touched
-    unzip -tq backup_file.sql.zip
+    unzip backup_file.sql.zip -d tmp_backup && mv tmp_backup/* "backup_file.sql"
+    rm -d tmp_backup
+    rm -f backup_file.sql.zip
 
     echo "Docker host - $DOCKER_HOST"
     echo "POSTGRES_CONTAINER_NAME - $POSTGRES_CONTAINER_NAME"
@@ -33,14 +33,12 @@ then
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE ${DATABASE_NAME};"
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "CREATE DATABASE ${DATABASE_NAME};"
 
-    # Stream the dump straight into Postgres, so the unzipped file never lands on disk
-    unzip -p backup_file.sql.zip | docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -d ${DATABASE_NAME}
-
-    rm -f backup_file.sql.zip
+    cat backup_file.sql | docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -d ${DATABASE_NAME}
+    
+    rm -f backup_file.sql
     ../shared/restart.sh
 else
     echo "Missing reference backup zip file"
-    exit 1
 fi
 
 

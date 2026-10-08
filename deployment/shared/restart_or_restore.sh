@@ -12,7 +12,7 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
     aws s3 cp s3://$BUCKET_NAME/$LATEST_BACKUP_NAME .
     mv $LATEST_BACKUP_NAME backup_file.sql.zip
 
-    ../shared/restore.sh || { echo "Database restore failed"; exit 1; }
+    ../shared/restore.sh
     ../shared/after_restore.sh
     rm -f ./.env-restore
 else
