@@ -3,6 +3,7 @@ FROM gliderlabs/alpine:3.4
 COPY log/logback.xml /config/log/logback.xml
 COPY scalyr/agent.json /config/scalyr/agent.json
 COPY nginx/openlmis.conf /config/nginx/openlmis.conf
+COPY reports/ /config/reports/
 #COPY cert/root.crt /config/cert/root.crt
 COPY ./connect /config/connect
 
