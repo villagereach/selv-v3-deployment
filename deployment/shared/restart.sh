@@ -3,7 +3,7 @@
 WIPE_MSG="Will WIPE data!"
 KEEP_MSG="Will keep data."
 
-/usr/local/bin/docker-compose down -v
+/usr/local/bin/docker-compose down -v --remove-orphans
 
 if [ "$KEEP_OR_WIPE" == "wipe" ]; then
   echo "$WIPE_MSG"
