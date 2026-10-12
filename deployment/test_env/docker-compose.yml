@@ -38,7 +38,8 @@ services:
     image: openlmis/postgres:${OL_POSTGRES_VERSION}
     env_file: settings.env
     container_name: test_env_db_1
-    command: postgres -c max_connections=500
+    command: postgres -c max_connections=500 -c shared_buffers=4GB -c effective_cache_size=16GB -c work_mem=32MB -c maintenance_work_mem=512MB
+    shm_size: 1gb
     ports:
       - "5432:5432"
     volumes:
