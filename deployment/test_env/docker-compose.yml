@@ -67,25 +67,6 @@ services:
     logging:
       <<: *logging
 
-  scalyr:
-    restart: always
-    image: openlmis/scalyr:${OL_SCALYR_AGENT_VERSION}
-    container_name: scalyr-agent
-    env_file: settings.env
-    volumes:
-      - service-config:/config
-      - /run/docker.sock:/var/scalyr/docker.sock
-      - syslog:/var/log
-      - nginx-log:/var/log/nginx/log
-      - auth-tomcat-log:/var/log/auth-tomcat
-    depends_on:
-      service-configuration:
-        condition: service_completed_successfully
-      consul:
-        condition: service_healthy
-    logging:
-      <<: *logging
-
   redis:
     image: redis:3.2.12
     depends_on:
