@@ -119,6 +119,17 @@ services:
     logging:
       <<: *logging
 
+  openlmis-ui:
+    image: openlmis/openlmis-ui:${OL_UI_VERSION}
+    env_file: settings.env
+    environment:
+      BASE_PATH: /v2
+    depends_on:
+      consul:
+        condition: service_healthy
+    logging:
+      <<: *logging
+
   ftp:
     image: driesva/proftpd
     ports:
