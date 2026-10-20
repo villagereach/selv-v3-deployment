@@ -27,6 +27,15 @@ when trying to log in). In order to fix that, values for both server and UI clie
 `.env-restore`). `authorizedgranttypes` column helps to establish if the credentials are for the
 server side (`client_credentials`) or for the UI side (`password`).
 
+#### Rights added by hand (not by migrations)
+Rights live in the referencedata service, so SELV extension modules cannot create the ones they
+check. These have to be added once per environment after the deployment that introduces them,
+then assigned to a role on the Administration > Roles screen:
+
+| Right | Needed since | How to add |
+|---|---|---|
+| `EXCHANGE_RATE_MANAGE` (`GENERAL_ADMIN`) | selv-v3-fulfillment-extension 1.1.0 / selv-v3-ui after v1.2.0 (SELV3-845) | API call or SQL in the [selv-v3-fulfillment-extension README](https://github.com/villagereach/selv-v3-fulfillment-extension#required-manual-configuration) |
+
 #### Postgres extensions
 If for some reason extensions specified in [this file](https://github.com/OpenLMIS/postgres/blob/master/init/init-openlmis-db.sh)
 were not created properly - it might result in errors while executing the initial SQL migrations. In this case,
