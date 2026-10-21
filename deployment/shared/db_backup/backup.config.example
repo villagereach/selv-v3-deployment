@@ -1,0 +1,42 @@
+# Settings for db_backup.sh and backupctl. Copy this file to backup.config next to the scripts
+# and adjust it for the server. backup.config stays on the server and is not committed.
+
+# Database container and database
+POSTGRES_CONTAINER_NAME=test_env_db_1
+DATABASE_NAME=open_lmis
+DATABASE_USER=postgres
+
+# S3 target: a bare bucket name, without s3:// and without a slash.
+# Backups go to <tier>/ prefixes: daily/, weekly/, monthly/ and manual/.
+# Expiry is done by lifecycle rules on the bucket, never by these scripts.
+S3_BUCKET="<backup bucket of this server>"
+AWS_REGION=eu-west-1
+
+# Optional: buckets the script refuses to write to, separated by spaces (a guard against a wrong
+# S3_BUCKET).
+PROTECTED_BUCKETS=""
+
+# true: use only the EC2 instance role and ignore AWS credential files and key variables.
+# false: use the normal AWS CLI lookup.
+AWS_USE_INSTANCE_ROLE=true
+AWS_CLI=/home/ubuntu/.local/bin/aws
+
+# Backup file names: <prefix>_<date>-<tier>.sql.zip
+BACKUP_NAME_PREFIX=open_lmis
+
+# Scheduled runs pick the tier by date (UTC): monthly on this day of the month,
+# weekly on this ISO day of the week (1 = Monday ... 7 = Sunday), daily on the other days.
+DAY_OF_MONTHLY_BACKUP=1
+DAY_OF_WEEKLY_BACKUP=6
+
+# A dump does not start with less free space than this in the work directory.
+MIN_FREE_GB=10
+# A finished zip smaller than this counts as a failed dump.
+MIN_BACKUP_MB=100
+# Read the whole zip back and check pg_dump's completion line before uploading.
+VERIFY_DUMP=true
+# A run is stopped after this long (timeout(1) duration).
+MAX_RUNTIME=6h
+
+# When cron starts the job (UTC). Applied by "backupctl install".
+CRON_SCHEDULE="0 1 * * *"
