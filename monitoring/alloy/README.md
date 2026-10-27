@@ -47,6 +47,10 @@ CREATE ROLE olmis_monitoring LOGIN PASSWORD '...';
 GRANT pg_monitor TO olmis_monitoring;
 ```
 
+A test restore drops and recreates only the database, so the role survives it;
+`deployment/shared/after_restore.sh` still re-creates it (for a wiped `pgdata`
+volume) when `MONITORING_DB_PASSWORD` is set in `.env-restore`.
+
 ## Notes
 
 - `network_mode: host`, not the app network: the app deploy's
