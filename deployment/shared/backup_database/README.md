@@ -1,5 +1,7 @@
 ## **Creating database backups in the SELV-V3**
 
+The test server uses `../db_backup` instead (streamed dump, S3 lifecycle retention, on/off switch).
+
 This folder (backup_database) reflects the structure of the files that are on the production instance for database backup. The folder contains:
 
 **- file pg_backup.config:** the file contains variable settings used in other scripts
