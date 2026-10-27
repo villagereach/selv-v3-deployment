@@ -145,6 +145,11 @@ services:
   requisition:
     restart: always
     image: openlmis/requisition:${OL_REQUISITION_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "requisition"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -173,6 +178,11 @@ services:
   referencedata:
     restart: always
     image: openlmis/referencedata:${OL_REFERENCEDATA_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "referencedata"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -201,6 +211,11 @@ services:
   auth:
     restart: always
     image: openlmis/auth:${OL_AUTH_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "auth"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -229,6 +244,11 @@ services:
   notification:
     restart: always
     image: openlmis/notification:${OL_NOTIFICATION_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "notification"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -257,6 +277,11 @@ services:
   fulfillment:
     restart: always
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "fulfillment"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -288,6 +313,11 @@ services:
   stockmanagement:
     restart: always
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "stockmanagement"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -318,6 +348,11 @@ services:
 
   report:
     image: openlmismz/selv-v3-report:${SELV_V3_REPORT_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "report"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -346,6 +381,11 @@ services:
   cce:
     restart: always
     image: openlmis/cce:${OL_CCE_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "cce"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -369,6 +409,11 @@ services:
   buq:
     restart: always
     image: openlmis/buq:${OL_BUQ_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "buq"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -392,6 +437,11 @@ services:
   hapifhir:
     restart: always
     image: openlmis/hapifhir:${OL_HAPIFHIR_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "hapifhir"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
@@ -415,6 +465,11 @@ services:
   diagnostics:
     restart: always
     image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "diagnostics"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
