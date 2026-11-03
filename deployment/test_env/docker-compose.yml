@@ -4,7 +4,6 @@ services:
     build:
       context: ./config
     volumes:
-      - syslog:/var/log
       - service-config:/config
 
   selv-v3-extensions:
@@ -49,19 +48,6 @@ services:
         aliases:
           - olmis-db
     depends_on:
-      consul:
-        condition: service_healthy
-    logging:
-      <<: *logging
-
-  log:
-    restart: always
-    image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
-    volumes:
-      - syslog:/var/log
-    depends_on:
-      service-configuration:
-        condition: service_completed_successfully
       consul:
         condition: service_healthy
     logging:
@@ -152,21 +138,22 @@ services:
       monitoring.service: "requisition"
     env_file: settings.env
     environment:
+      # logback.configurationFile applies the config from JVM start; the jar's own
+      # logback.xml logs to syslog host "log", and its startup error makes Spring abort.
+      # The same pair is set on every Java service below.
       JAVA_OPTS: >-
         -Xms1024m
         -Xmx1024m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -189,17 +176,15 @@ services:
         -Xms1536m
         -Xmx1536m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -222,17 +207,15 @@ services:
         -Xms1024m
         -Xmx1024m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -255,17 +238,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -288,9 +269,9 @@ services:
         -Xms1024m
         -Xmx1024m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
       - selv-v3-extensions-fulfillment:/extensions
     depends_on:
@@ -300,8 +281,6 @@ services:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -324,9 +303,9 @@ services:
         -Xms2048m
         -Xmx2048m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
       - selv-v3-extensions-stockmanagement:/extensions
     depends_on:
@@ -336,8 +315,6 @@ services:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -359,17 +336,15 @@ services:
         -Xms2048m
         -Xmx2048m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -392,17 +367,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -420,17 +393,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -448,17 +419,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -476,17 +445,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -501,17 +468,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -523,23 +488,20 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
 volumes:
   service-config:
-  syslog:
   nginx-log:
   auth-tomcat-log:
   consul-template-log:
