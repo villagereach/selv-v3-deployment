@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+#
+# Controls the scheduled database backup on this server. See README.md.
+#
+#   backupctl on "<reason>"    turn the scheduled backup on; it runs at the next cron time
+#   backupctl off "<reason>"   turn it off; a backup that is already running finishes
+#   backupctl status           switch, cron entry, last cron tick, last run and last successful backup
+#   backupctl run              start one manual backup into manual/ in the background, also while off
+#   backupctl stop             stop the backup that is running now
+#   backupctl log [lines|-f]   show the end of the log (default 50 lines), or follow it
+#   backupctl install          write /etc/cron.d/selv-db-backup from the template (uses sudo)
+#   backupctl uninstall        remove /etc/cron.d/selv-db-backup; the switch is kept
+#   backupctl cron             entry point for cron, not meant to be run by hand
+#
+# The cron entry fires every day. While the switch is off it only records the tick and logs SKIP,
+# which shows that cron itself still works. A missing or unreadable switch file counts as off.
+# Run it as the backup user, not as root.
+
+set -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="$BASE_DIR/backup.config"
+STATE_DIR="$BASE_DIR/state"
+LOG_DIR="$BASE_DIR/logs"
+LOG_FILE="$LOG_DIR/db_backup.log"
+SWITCH_FILE="$STATE_DIR/switch"
+LOCK_FILE="$STATE_DIR/backup.lock"
+PID_FILE="$STATE_DIR/running.pid"
+CRON_TEMPLATE="$BASE_DIR/selv-db-backup.cron"
+CRON_FILE="${BACKUPCTL_CRON_FILE:-/etc/cron.d/selv-db-backup}"
+
+now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log() {
+  mkdir -p "$LOG_DIR"
+  printf '%s [backupctl] %s\n' "$(now_iso)" "$*" >> "$LOG_FILE"
+}
+die() { echo "backupctl: $*" >&2; exit 1; }
+
+ensure_dirs() {
+  mkdir -p "$STATE_DIR" "$LOG_DIR" "$BASE_DIR/work"
+  chmod 700 "$STATE_DIR" "$LOG_DIR" "$BASE_DIR/work"
+}
+
+# Prints one setting from backup.config, or the given default.
+config_value() {
+  local name="$1" default="$2" value=""
+  if [ -r "$CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
+    value=$( . "$CONFIG_FILE" >/dev/null 2>&1; eval "printf '%s' \"\${$name:-}\"" )
+  fi
+  printf '%s' "${value:-$default}"
+}
+
+# Checks five plain cron fields. Each comma-separated item is N, N-M, */S or N-M/S, with the numbers
+# inside the field's range and N <= M; Debian cron ignores the whole file for anything else.
+valid_schedule() {
+  local -a fields items lows=(0 0 1 1 0) highs=(59 23 31 12 7)
+  local i item base lo hi
+  echo "$1" | grep -Eq '^[0-9*/,-]+( [0-9*/,-]+){4}$' || return 1
+  read -r -a fields <<< "$1"
+  for i in 0 1 2 3 4; do
+    case "${fields[$i]}" in ,*|*,|*,,*) return 1 ;; esac
+    IFS=, read -r -a items <<< "${fields[$i]}"
+    for item in "${items[@]}"; do
+      printf '%s\n' "$item" | grep -Eq '^(\*(/[1-9][0-9]*)?|[0-9]+(-[0-9]+(/[1-9][0-9]*)?)?)$' || return 1
+      base="${item%%/*}"
+      [ "$base" != "*" ] || continue
+      lo="${base%-*}"
+      hi="${base#*-}"
+      [ "$((10#$lo))" -ge "${lows[$i]}" ] && [ "$((10#$hi))" -le "${highs[$i]}" ] &&
+        [ "$((10#$lo))" -le "$((10#$hi))" ] || return 1
+    done
+  done
+}
+
+switch_value() {
+  local value=""
+  if [ -r "$SWITCH_FILE" ]; then
+    read -r value < "$SWITCH_FILE" || true
+  fi
+  if [ "$value" = on ]; then echo on; else echo off; fi
+}
+
+# State files hold one line: <epoch seconds> <UTC time> <details>.
+write_state() {
+  local file="$STATE_DIR/$1"
+  shift
+  printf '%s %s %s\n' "$(date -u +%s)" "$(now_iso)" "$*" > "$file.tmp"
+  mv -f "$file.tmp" "$file"
+}
+
+state_line() { [ -r "$STATE_DIR/$1" ] && cut -d' ' -f2- "$STATE_DIR/$1" || echo "never"; }
+
+state_age_hours() {
+  local epoch
+  [ -r "$STATE_DIR/$1" ] || { echo ""; return; }
+  epoch=$(cut -d' ' -f1 "$STATE_DIR/$1")
+  echo $((($(date -u +%s) - epoch) / 3600))
+}
+
+backup_running() {
+  [ -e "$LOCK_FILE" ] || return 1
+  ! ( exec 9>> "$LOCK_FILE"; flock -n 9 ) 2>/dev/null
+}
+
+set_switch() {
+  local value="$1" reason="${2:-}"
+  reason="${reason//$'\n'/ }"
+  [ -n "${reason//[[:space:]]/}" ] ||
+    die "give a reason: backupctl $value \"<reason>\""
+  ensure_dirs
+  printf '%s\n# %s %s: %s\n' "$value" "$(now_iso)" "$(id -un)" "$reason" > "$SWITCH_FILE.tmp"
+  mv -f "$SWITCH_FILE.tmp" "$SWITCH_FILE"
+  log "switch set to $value by $(id -un): $reason"
+  if [ "$value" = on ]; then
+    echo "Scheduled backup is on. It runs at the next cron time ($(config_value CRON_SCHEDULE '0 1 * * *') UTC)."
+  else
+    echo "Scheduled backup is off. Cron keeps ticking and logs SKIP."
+  fi
+}
+
+# Runs db_backup.sh under the lock and records the result. $1 is auto or manual.
+run_backup() {
+  local mode="$1" result rc max
+  exec 9> "$LOCK_FILE"
+  # status, run and stop hold the lock for a moment to see whether a backup runs, so wait a little.
+  if ! flock -w 30 9; then
+    log "SKIP $mode backup: another backup is still running"
+    write_state last_run "mode=$mode result=skipped-busy"
+    return 1
+  fi
+  max=$(config_value MAX_RUNTIME 6h)
+  result="$STATE_DIR/result.$$"
+  rm -f "$result"
+  log "starting $mode backup"
+  # timeout puts the backup in its own process group and passes a TERM on to all of it,
+  # which is how backupctl stop ends a running backup.
+  set +e
+  BACKUP_RESULT_FILE="$result" timeout -k 10m "$max" "$BASE_DIR/db_backup.sh" "$mode" >> "$LOG_FILE" 2>&1 &
+  BACKUP_PID=$!
+  echo "$BACKUP_PID" > "$PID_FILE"
+  # If backupctl itself is stopped, stop the backup as well and still record the result.
+  trap 'kill -TERM "$BACKUP_PID" 2>/dev/null' TERM INT HUP
+  wait "$BACKUP_PID"
+  rc=$?
+  while kill -0 "$BACKUP_PID" 2>/dev/null; do
+    wait "$BACKUP_PID"
+    rc=$?
+  done
+  trap - TERM INT HUP
+  set -e
+  rm -f "$PID_FILE"
+  if [ "$rc" -eq 0 ] && [ -s "$result" ]; then
+    write_state last_run "mode=$mode result=ok"
+    write_state last_success "mode=$mode $(cat "$result")"
+    log "$mode backup finished: $(cat "$result")"
+    logger -t selv-db-backup "backup OK: mode=$mode $(cat "$result")" || true
+  else
+    [ "$rc" -ne 0 ] || rc=1
+    case "$rc" in
+      124) log "$mode backup stopped after MAX_RUNTIME=$max" ;;
+      137) log "$mode backup killed (SIGKILL): 10 minutes after MAX_RUNTIME=$max or a stop, or by the system" ;;
+      143) log "$mode backup stopped by backupctl stop or a signal" ;;
+    esac
+    write_state last_run "mode=$mode result=failed exit=$rc"
+    log "$mode backup FAILED with exit code $rc"
+    logger -t selv-db-backup -p user.err "backup FAILED: mode=$mode exit=$rc, see $LOG_FILE" || true
+  fi
+  rm -f "$result"
+  return "$rc"
+}
+
+cmd_cron() {
+  ensure_dirs
+  write_state last_tick "switch=$(switch_value)"
+  if [ "$(switch_value)" != on ]; then
+    log "SKIP scheduled backup: the switch is off"
+    return 0
+  fi
+  run_backup auto
+}
+
+cmd_run() {
+  ensure_dirs
+  [ -r "$CONFIG_FILE" ] || die "$CONFIG_FILE is missing (cp backup.config.example backup.config)"
+  ! backup_running || die "a backup is already running, see: $BASE_DIR/backupctl log"
+  log "manual backup requested by $(id -un)"
+  setsid nohup "$BASE_DIR/backupctl" _manual >> "$LOG_FILE" 2>&1 < /dev/null &
+  echo "Manual backup started in the background. Follow it with: $BASE_DIR/backupctl log -f"
+}
+
+cmd_stop() {
+  local pid cmdline
+  backup_running && [ -r "$PID_FILE" ] || die "no backup is running"
+  pid=$(cat "$PID_FILE")
+  case "$pid" in
+    ''|*[!0-9]*) die "$PID_FILE does not hold a process id" ;;
+  esac
+  # The recorded process must be the timeout(1) that runs db_backup.sh from this folder.
+  cmdline=$( { tr '\0' ' ' < "/proc/$pid/cmdline"; } 2>/dev/null || true )
+  case "$cmdline" in
+    "timeout "*"$BASE_DIR/db_backup.sh "*) ;;
+    *) die "process $pid is not a running backup; remove $PID_FILE if it is stale" ;;
+  esac
+  kill -TERM "$pid"
+  log "stop requested by $(id -un)"
+  echo "Stop sent. The backup ends within seconds; check with: $BASE_DIR/backupctl status"
+}
+
+cmd_status() {
+  local warnings=() schedule entry age result
+  echo "switch:          $(switch_value)"
+  if [ -r "$SWITCH_FILE" ]; then
+    sed -n '2s/^# */                 /p' "$SWITCH_FILE"
+  fi
+  if [ -f "$CRON_FILE" ]; then
+    entry=$(grep -v '^#' "$CRON_FILE" | grep 'backupctl cron' | head -n 1 || true)
+    schedule=$(echo "$entry" | awk '{ print $1, $2, $3, $4, $5 }')
+    echo "cron entry:      $CRON_FILE, \"$schedule\" UTC"
+    if [ "$schedule" != "$(config_value CRON_SCHEDULE '0 1 * * *')" ]; then
+      warnings+=("the cron entry does not match CRON_SCHEDULE in backup.config, run backupctl install")
+    fi
+  else
+    echo "cron entry:      missing ($CRON_FILE)"
+    warnings+=("no cron entry, run backupctl install")
+  fi
+  if crontab -l 2>/dev/null | grep -q 'backup_database/'; then
+    warnings+=("the user crontab still has backup_database lines (commented ones too), remove them")
+  fi
+  echo "last cron tick:  $(state_line last_tick)"
+  echo "last run:        $(state_line last_run)"
+  echo "last success:    $(state_line last_success)"
+  if backup_running; then
+    echo "running now:     yes"
+  else
+    echo "running now:     no"
+  fi
+
+  if [ "$(switch_value)" = on ]; then
+    age=$(state_age_hours last_tick)
+    if [ -z "$age" ]; then
+      warnings+=("cron has never ticked")
+    elif [ "$age" -ge 25 ]; then
+      warnings+=("cron has not ticked for $age hours")
+    fi
+    result=$(state_line last_run)
+    case "$result" in
+      *result=ok*) ;;
+      *) warnings+=("the last run did not succeed") ;;
+    esac
+    age=$(state_age_hours last_success)
+    if [ -z "$age" ]; then
+      warnings+=("there has been no successful backup yet")
+    elif [ "$age" -ge 26 ]; then
+      warnings+=("no successful backup for $age hours")
+    fi
+  fi
+
+  if [ ${#warnings[@]} -gt 0 ]; then
+    printf 'WARNING:         %s\n' "${warnings[@]}"
+    return 1
+  fi
+}
+
+cmd_log() {
+  [ -r "$LOG_FILE" ] || die "no log yet ($LOG_FILE)"
+  case "${1:-50}" in
+    -f) tail -n 20 -f "$LOG_FILE" ;;
+    *[!0-9]*) die "usage: backupctl log [lines|-f]" ;;
+    *) tail -n "${1:-50}" "$LOG_FILE" ;;
+  esac
+}
+
+cmd_install() {
+  local schedule rendered
+  [ -r "$CONFIG_FILE" ] || die "$CONFIG_FILE is missing (cp backup.config.example backup.config)"
+  schedule=$(config_value CRON_SCHEDULE '0 1 * * *')
+  valid_schedule "$schedule" ||
+    die "CRON_SCHEDULE must be five plain cron fields within range, got '$schedule'"
+  ensure_dirs
+  chmod 600 "$CONFIG_FILE"
+  [ -e "$SWITCH_FILE" ] || set_switch off "installed; off until someone turns it on"
+
+  rendered=$(mktemp)
+  sed -e "s|@SCHEDULE@|$schedule|" -e "s|@USER@|$(id -un)|" -e "s|@BASE_DIR@|$BASE_DIR|g" \
+    "$CRON_TEMPLATE" > "$rendered"
+  [ -z "$(tail -c 1 "$rendered")" ] || echo >> "$rendered"
+  sudo install -o root -g root -m 0644 "$rendered" "$CRON_FILE"
+  rm -f "$rendered"
+  log "cron entry installed in $CRON_FILE: $schedule"
+  echo "Installed $CRON_FILE ($schedule UTC)."
+  cmd_status || true
+}
+
+cmd_uninstall() {
+  sudo rm -f "$CRON_FILE"
+  log "cron entry removed from $CRON_FILE"
+  echo "Removed $CRON_FILE. The switch is unchanged; backupctl install puts the entry back."
+}
+
+if [ "$(id -u)" -eq 0 ]; then
+  die "run backupctl as the backup user, not as root (it calls sudo itself where needed)"
+fi
+
+case "${1:-}" in
+  on|off)    set_switch "$1" "${2:-}" ;;
+  status)    cmd_status ;;
+  run)       cmd_run ;;
+  _manual)   ensure_dirs; run_backup manual ;;
+  stop)      cmd_stop ;;
+  log)       cmd_log "${2:-50}" ;;
+  install)   cmd_install ;;
+  uninstall) cmd_uninstall ;;
+  cron)      cmd_cron ;;
+  *)         sed -n '3,18s/^# \{0,1\}//p' "$0"; exit 2 ;;
+esac
