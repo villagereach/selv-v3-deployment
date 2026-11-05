@@ -59,8 +59,8 @@ owns the folder (`ubuntu`), never with sudo: files created by root would break l
 | production | `production_env_db_1` | `selv-backups` | empty | `true` |
 | test | `test_env_db_1` | `selv-test-backups` | `selv-backups` | `false` |
 
-The other settings keep the values of `backup.config.example`. Dev is not running; when it is set up
-again it gets a row of its own, with `PROTECTED_BUCKETS="selv-backups"`.
+The other settings keep the values of `backup.config.example`, whose `PROTECTED_BUCKETS="selv-backups"`
+production alone clears. Dev is not running; when it is set up again it gets a row of its own.
 
 ## Local copies
 

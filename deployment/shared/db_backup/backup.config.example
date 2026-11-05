@@ -14,9 +14,9 @@ S3_BUCKET="<backup bucket of this server>"
 AWS_REGION=eu-west-1
 
 # Optional: buckets the script refuses to write to, separated by spaces (a guard against a wrong
-# S3_BUCKET). Set it to selv-backups on every server except production: production writes that
-# bucket, and the Jenkins wipe restores from it.
-PROTECTED_BUCKETS=""
+# S3_BUCKET). selv-backups is written by production only, and the Jenkins wipe restores from it:
+# keep it here on every other server and set PROTECTED_BUCKETS="" on production.
+PROTECTED_BUCKETS="selv-backups"
 
 # true: use only the EC2 instance role and ignore AWS credential files and key variables.
 # false: use the normal AWS CLI lookup.
