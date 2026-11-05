@@ -14,8 +14,8 @@ in `backup.config` (see [Settings per environment](#settings-per-environment)).
   (`MIN_BACKUP_MB`), that the zip has exactly one entry and, with `VERIFY_DUMP=true`, that pg_dump's
   completion line is at the end of the dump. Only then does it upload the file and compare its size
   in S3. Any failure stops the run with a non-zero exit code.
-- The local zip is removed at the end of every run; leftovers of a killed run are removed at the
-  start of the next one. If a run ends before pg_dump has finished, the script ends that pg_dump
+- The local zip is removed at the end of every run, unless `KEEP_LOCAL_COPIES=true` keeps it (see
+  [Local copies](#local-copies)); leftovers of a killed run are removed at the start of the next one. If a run ends before pg_dump has finished, the script ends that pg_dump
   session in the database; otherwise it would keep running to the end for nothing.
 - Backups go to prefixes in the bucket:
 
@@ -23,7 +23,7 @@ in `backup.config` (see [Settings per environment](#settings-per-environment)).
   |---|---|---|
   | `daily/` | scheduled run, most days | lifecycle rule, 7 days |
   | `weekly/` | scheduled run on `DAY_OF_WEEKLY_BACKUP` | lifecycle rule, 35 days |
-  | `monthly/` | scheduled run on `DAY_OF_MONTHLY_BACKUP` | lifecycle rule if one is set, otherwise forever |
+  | `monthly/` | scheduled run on `DAY_OF_MONTHLY_BACKUP` | lifecycle rule, 365 days |
   | `manual/` | `backupctl run` | until deleted by hand |
 
 - The scripts never delete anything in S3. Expiry is done by lifecycle rules on the bucket, so the
@@ -48,19 +48,41 @@ in `backup.config` (see [Settings per environment](#settings-per-environment)).
 | `selv-db-backup.cron` | template for `/etc/cron.d/selv-db-backup`, rendered by `backupctl install` |
 
 On the server, `backupctl` also creates `state/` (switch, last tick, last run, last success),
-`logs/db_backup.log` and `work/` (the zip while a backup runs). Run both scripts as the user that
+`logs/db_backup.log`, `work/` (the zip while a backup runs) and, when copies are kept, `local/`. Run both scripts as the user that
 owns the folder (`ubuntu`), never with sudo: files created by root would break later runs.
 `backupctl` calls sudo itself where it needs it.
 
 ## Settings per environment
 
-| Server | `POSTGRES_CONTAINER_NAME` | `S3_BUCKET` | `PROTECTED_BUCKETS` |
-|---|---|---|---|
-| production | `production_env_db_1` | `selv-backups` | empty |
-| test | `test_env_db_1` | `selv-test-backups` | `selv-backups` |
+| Server | `POSTGRES_CONTAINER_NAME` | `S3_BUCKET` | `PROTECTED_BUCKETS` | `KEEP_LOCAL_COPIES` |
+|---|---|---|---|---|
+| production | `production_env_db_1` | `selv-backups` | empty | `true` |
+| test | `test_env_db_1` | `selv-test-backups` | `selv-backups` | `false` |
 
 The other settings keep the values of `backup.config.example`. Dev is not running; when it is set up
 again it gets a row of its own, with `PROTECTED_BUCKETS="selv-backups"`.
+
+## Local copies
+
+With `KEEP_LOCAL_COPIES=true` the zip of every successful backup also stays on the server, in
+`LOCAL_DIR/<tier>/` (`local/` next to the scripts by default), with the same name as in S3.
+
+- A copy is moved there only after the upload has been checked, so it costs no extra space while
+  the backup runs. `LOCAL_DIR` must be on the same filesystem as `work/`; the script refuses to
+  start otherwise.
+- At the start of every run, before the free-space check, daily, weekly and monthly copies older
+  than `LOCAL_KEEP_DAYS_DAILY` (7), `LOCAL_KEEP_DAYS_WEEKLY` (35) and `LOCAL_KEEP_DAYS_MONTHLY`
+  (365) days are removed. The age counts from the date in the file name. This also runs while
+  `KEEP_LOCAL_COPIES=false`, so copies left from before age out. Files without a date in the name
+  are left in place and logged.
+- Manual copies are never removed, like `manual/` in S3. Delete them by hand when they are no
+  longer needed.
+- A copy is kept only if `MIN_FREE_GB` is still free with it on disk. Otherwise the log says
+  `WARN local copy not kept`, the copy is removed, and the backup still counts as successful,
+  since it is in S3.
+- Space needed: about 7 daily + 5 weekly + 12 monthly = 24 zips, plus manual copies. With a
+  4.3 GB zip that is about 103 GB, on top of `MIN_FREE_GB`.
+- `backupctl status` shows the number and size of the copies per tier.
 
 ## AWS setup
 
@@ -89,7 +111,7 @@ Lifecycle rules on the bucket:
 
 - `daily/`: expire current versions after 7 days
 - `weekly/`: expire current versions after 35 days
-- `monthly/`: optional, expire after the agreed period
+- `monthly/`: expire current versions after 365 days
 - whole bucket: delete incomplete multipart uploads after 7 days, with no expiry action
 
 ## Install on a server
@@ -126,7 +148,7 @@ scp deployment/shared/db_backup/* <host>:~/db_backup/
 ```
 
 Copy the files, not the folder: `scp -r` into an existing `~/db_backup` creates
-`~/db_backup/db_backup`. `backup.config`, `state/`, `logs/` and `work/` stay as they are. Run
+`~/db_backup/db_backup`. `backup.config`, `state/`, `logs/`, `work/` and `local/` stay as they are. Run
 `~/db_backup/backupctl install` again when `CRON_SCHEDULE` or the cron template has changed. Change
 the scripts in the repo, not on the server, so that both copies stay the same.
 

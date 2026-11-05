@@ -209,7 +209,7 @@ cmd_stop() {
 }
 
 cmd_status() {
-  local warnings=() schedule entry age result
+  local warnings=() schedule entry age result local_dir tier
   echo "switch:          $(switch_value)"
   if [ -r "$SWITCH_FILE" ]; then
     sed -n '2s/^# */                 /p' "$SWITCH_FILE"
@@ -236,6 +236,12 @@ cmd_status() {
   else
     echo "running now:     no"
   fi
+  local_dir=$(config_value LOCAL_DIR "$BASE_DIR/local")
+  for tier in daily weekly monthly manual; do
+    [ -d "$local_dir/$tier" ] || continue
+    printf '%-17s%s files, %s\n' "local $tier:" \
+      "$(find "$local_dir/$tier" -maxdepth 1 -type f | wc -l)" "$(du -sh "$local_dir/$tier" | cut -f1)"
+  done
 
   if [ "$(switch_value)" = on ]; then
     age=$(state_age_hours last_tick)
