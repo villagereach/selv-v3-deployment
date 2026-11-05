@@ -77,11 +77,14 @@ With `KEEP_LOCAL_COPIES=true` the zip of every successful backup also stays on t
   are left in place and logged.
 - Manual copies are never removed, like `manual/` in S3. Delete them by hand when they are no
   longer needed.
-- A copy is kept only if `MIN_FREE_GB` is still free with it on disk. Otherwise the log says
+- A copy is kept only if `MIN_FREE_GB` plus the size of one more zip is still free with it on
+  disk, so that the next run passes its free-space check. Otherwise the log says
   `WARN local copy not kept`, the copy is removed, and the backup still counts as successful,
   since it is in S3.
-- Space needed: about 7 daily + 5 weekly + 12 monthly = 24 zips, plus manual copies. With a
-  4.3 GB zip that is about 103 GB, on top of `MIN_FREE_GB`.
+- A copy that cannot be removed when it expires is logged with `WARN` and does not stop the backup.
+- Space needed: a copy goes once it is older than its limit, so up to 7 daily, 6 weekly and 13
+  monthly copies stay, 26 zips plus manual copies. With a 4.3 GB zip that is about 112 GB, on top
+  of `MIN_FREE_GB` and one more zip.
 - `backupctl status` shows the number and size of the copies per tier.
 
 ## AWS setup

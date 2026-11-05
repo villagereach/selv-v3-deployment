@@ -38,7 +38,7 @@ MIN_BACKUP_MB=100
 # Read the whole zip back and check pg_dump's completion line before uploading.
 VERIFY_DUMP=true
 # true: also keep each uploaded zip on this server, in LOCAL_DIR/<tier>/. A copy is kept only if
-# MIN_FREE_GB is still free with it on disk.
+# MIN_FREE_GB plus the size of one more zip is still free with it on disk.
 KEEP_LOCAL_COPIES=false
 # Empty means local/ next to the scripts. Must be an absolute path on the same filesystem as work/.
 LOCAL_DIR=

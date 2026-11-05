@@ -35,7 +35,7 @@ MODE="$1"
 [ -r "$CONFIG_FILE" ] || fail "config file $CONFIG_FILE not found (copy backup.config.example)"
 # shellcheck source-path=SCRIPTDIR source=backup.config.example
 . "$CONFIG_FILE"
-: "${LOCAL_DIR:=$BASE_DIR/local}"
+: "${KEEP_LOCAL_COPIES:=false}" "${LOCAL_DIR:=$BASE_DIR/local}"
 : "${LOCAL_KEEP_DAYS_DAILY:=7}" "${LOCAL_KEEP_DAYS_WEEKLY:=35}" "${LOCAL_KEEP_DAYS_MONTHLY:=365}"
 
 for var in POSTGRES_CONTAINER_NAME DATABASE_NAME DATABASE_USER S3_BUCKET AWS_REGION AWS_CLI \
@@ -118,9 +118,9 @@ end_dumps() {
 }
 
 mkdir -p "$WORK_DIR"
-if [ "${KEEP_LOCAL_COPIES:-false}" = true ]; then
+if [ "$KEEP_LOCAL_COPIES" = true ]; then
   mkdir -p "$LOCAL_DIR" || fail "cannot create LOCAL_DIR $LOCAL_DIR"
-  chmod 700 "$LOCAL_DIR"
+  chmod 700 "$LOCAL_DIR" || fail "cannot restrict LOCAL_DIR $LOCAL_DIR to its owner"
   # Kept copies are moved out of work/, which takes no extra space only within one filesystem.
   [ "$(stat -c %d "$LOCAL_DIR")" = "$(stat -c %d "$WORK_DIR")" ] ||
     fail "LOCAL_DIR $LOCAL_DIR must be on the same filesystem as $WORK_DIR"
@@ -179,16 +179,19 @@ prune_local() {
         continue
       fi
       age=$(( (today_epoch - epoch) / 86400 ))
-      if [ "$age" -gt "${!days_var}" ]; then
-        rm -f -- "$file"
+      [ "$age" -gt "${!days_var}" ] || continue
+      if rm -f -- "$file"; then
         log "removed local copy $file: $age days old, $tier copies are kept ${!days_var} days"
+      else
+        log "WARN could not remove local copy $file"
       fi
     done
   done
 }
 prune_local
 
-free_kb=$(df -Pk "$WORK_DIR" | awk 'NR == 2 { print $4 }')
+free_kb() { df -Pk "$WORK_DIR" | awk 'NR == 2 { print $4 }'; }
+free_kb=$(free_kb)
 [ "$free_kb" -ge $((MIN_FREE_GB * 1024 * 1024)) ] ||
   fail "only $((free_kb / 1024 / 1024)) GB free in $WORK_DIR, need $MIN_FREE_GB GB"
 
@@ -228,11 +231,13 @@ remote=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$key" --query Conten
 [ "$remote" = "$bytes" ] || fail "size mismatch for s3://$S3_BUCKET/$key: local $bytes, S3 $remote"
 
 kept=none
-if [ "${KEEP_LOCAL_COPIES:-false}" = true ]; then
+if [ "$KEEP_LOCAL_COPIES" = true ]; then
   # The zip already takes its space in the work directory, so this is the free space with it kept.
-  free_kb=$(df -Pk "$WORK_DIR" | awk 'NR == 2 { print $4 }')
-  if [ "$free_kb" -lt $((MIN_FREE_GB * 1024 * 1024)) ]; then
-    log "WARN local copy not kept: $((free_kb / 1024 / 1024)) GB free with it, MIN_FREE_GB=$MIN_FREE_GB"
+  # It has to leave room for the next run's zip on top of MIN_FREE_GB, or a kept copy could make the
+  # next run fail its free-space check and send nothing to S3.
+  free_kb=$(free_kb)
+  if [ "$free_kb" -lt $((MIN_FREE_GB * 1024 * 1024 + bytes / 1024)) ]; then
+    log "WARN local copy not kept: $((free_kb / 1024 / 1024)) GB free with it, need MIN_FREE_GB=$MIN_FREE_GB plus one more zip"
   elif mkdir -p "$LOCAL_DIR/$tier" && mv "$part" "$LOCAL_DIR/$tier/$name"; then
     kept="$LOCAL_DIR/$tier/$name"
   else
