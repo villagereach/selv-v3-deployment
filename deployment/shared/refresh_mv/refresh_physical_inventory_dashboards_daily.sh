@@ -7,8 +7,8 @@
 source /home/ubuntu/refresh_mv/refresh_mv.config
 
 MATERIALIZED_VIEWS=(
-  ${MV_PHYSICAL_INVENTORIES_REPORT_RATE}
   ${MV_PHYSICAL_INVENTORIES_STATUS}
+  ${MV_PHYSICAL_INVENTORIES_REPORT_RATE}
 )
 
 ############################
