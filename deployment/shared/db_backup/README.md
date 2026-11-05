@@ -129,11 +129,12 @@ The folder is copied to the server by hand; no Jenkins job deploys it.
 3. Check that the instance role works on its own:
    `AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_CONFIG_FILE=/dev/null ~/.local/bin/aws sts get-caller-identity --region eu-west-1`
    should print `assumed-role/<role name>/<instance id>`.
-4. If the server used `../backup_database` before: save the crontab and remove its backup lines,
+4. If the server still has the old `~/backup_database` scripts (cron jobs running
+   `pg_backup_rotated.sh` and the `aws_s3_sync_*` scripts): save the crontab and remove their lines,
    including commented ones (`crontab -l > ~/crontab.before-db_backup && crontab -e`), then remove or
-   rename `~/backup_database`. Its sync scripts mirror the bucket with `--delete`, and its local copy
-   of the bucket takes disk space. `backupctl status` warns while any `backup_database/` line is
-   left in the crontab.
+   rename `~/backup_database`. Do this before the first backup in step 6: the old sync scripts mirror
+   the bucket with `--delete`, and their local copy of the bucket takes disk space. `backupctl status`
+   warns while any `backup_database/` line is left in the crontab.
 5. Install the cron entry. The switch starts off:
    `~/db_backup/backupctl install`
 6. Check that a backup works before turning the schedule on:
