@@ -11,12 +11,13 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
     echo "LATEST BACKUP FILE FROM S3 - $LATEST_BACKUP_NAME"
     if [ -z "$LATEST_BACKUP_NAME" ]; then
         echo "No backup found in $BUCKET_NAME" >&2
+        rm -f ./.env-restore
         exit 1
     fi
     # Keys may carry a prefix (daily/, manual/, ...), so download to the fixed name directly
     if ! aws s3 cp "s3://$BUCKET_NAME/$LATEST_BACKUP_NAME" backup_file.sql.zip; then
         echo "Download of $LATEST_BACKUP_NAME failed" >&2
-        rm -f backup_file.sql.zip
+        rm -f backup_file.sql.zip ./.env-restore
         exit 1
     fi
 
