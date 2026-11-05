@@ -242,6 +242,11 @@ cmd_status() {
     printf '%-17s%s files, %s\n' "local $tier:" \
       "$(find "$local_dir/$tier" -maxdepth 1 -type f | wc -l)" "$(du -sh "$local_dir/$tier" | cut -f1)"
   done
+  if [ "$(config_value KEEP_LOCAL_COPIES false)" = true ]; then
+    case "$(state_line last_success)" in
+      *local=none*) warnings+=("the last successful backup kept no local copy, see the log for why") ;;
+    esac
+  fi
 
   if [ "$(switch_value)" = on ]; then
     age=$(state_age_hours last_tick)

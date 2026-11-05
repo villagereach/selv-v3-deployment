@@ -184,7 +184,8 @@ kept until someone deletes them in S3.
 - `~/db_backup/backupctl status` prints the switch, the cron entry, the last cron tick, the last run
   and the last successful backup (manual runs count too). While the switch is on it warns when cron
   has not ticked for 25 hours, when the last run failed or when there has been no successful backup
-  for 26 hours, and exits with 1.
+  for 26 hours, and exits with 1. With `KEEP_LOCAL_COPIES=true` it also warns, whatever the switch,
+  when the last successful backup kept no local copy (not enough free space, see the log).
 - `~/db_backup/logs/db_backup.log` has every run and every SKIP. Results also go to the server's
   syslog with the tag `selv-db-backup`.
 - The scripts send no notifications. Failures show in `backupctl status` (exit code 1), in the log
