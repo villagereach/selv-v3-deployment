@@ -1,8 +1,9 @@
 # Settings for db_backup.sh and backupctl. Copy this file to backup.config next to the scripts
 # and adjust it for the server. backup.config stays on the server and is not committed.
+# The values for each environment are in the table in README.md.
 
 # Database container and database
-POSTGRES_CONTAINER_NAME=test_env_db_1
+POSTGRES_CONTAINER_NAME="<database container of this server>"
 DATABASE_NAME=open_lmis
 DATABASE_USER=postgres
 
@@ -13,8 +14,9 @@ S3_BUCKET="<backup bucket of this server>"
 AWS_REGION=eu-west-1
 
 # Optional: buckets the script refuses to write to, separated by spaces (a guard against a wrong
-# S3_BUCKET). selv-backups is the bucket the Jenkins wipe of test restores from.
-PROTECTED_BUCKETS="selv-backups"
+# S3_BUCKET). Set it to selv-backups on every server except production: production writes that
+# bucket, and the Jenkins wipe restores from it.
+PROTECTED_BUCKETS=""
 
 # true: use only the EC2 instance role and ignore AWS credential files and key variables.
 # false: use the normal AWS CLI lookup.

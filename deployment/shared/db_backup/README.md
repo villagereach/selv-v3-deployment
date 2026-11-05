@@ -1,8 +1,8 @@
 # Database backup to S3 (db_backup)
 
 Scheduled and manual backups of the OpenLMIS database to S3, with an on/off switch that does not
-require editing the crontab. Used on the test server. Production uses the scripts in
-`../backup_database`.
+require editing the crontab. Every server runs the same scripts; what differs between them is only
+in `backup.config` (see [Settings per environment](#settings-per-environment)).
 
 ## How it works
 
@@ -34,8 +34,9 @@ require editing the crontab. Used on the test server. Production uses the script
 - `/etc/cron.d/selv-db-backup` runs `backupctl cron` every day. `backupctl` reads the switch file
   and either runs the backup or only records the tick and logs `SKIP`. A missing or unreadable switch
   file counts as off. A lock prevents two backups at the same time.
-- The Jenkins wipe of the test server restores from the bucket set in `BUCKET_NAME` of the test
-  `settings.env`, not from this one, so the prefixes here do not affect it.
+- The Jenkins wipe of test restores from `BUCKET_NAME` of the test `settings.env`, which is
+  `selv-backups`, the bucket production writes. It takes the newest file under any prefix,
+  `manual/` included, so a manual backup on production is what the next wipe restores.
 
 ## Files
 
@@ -51,6 +52,16 @@ On the server, `backupctl` also creates `state/` (switch, last tick, last run, l
 owns the folder (`ubuntu`), never with sudo: files created by root would break later runs.
 `backupctl` calls sudo itself where it needs it.
 
+## Settings per environment
+
+| Server | `POSTGRES_CONTAINER_NAME` | `S3_BUCKET` | `PROTECTED_BUCKETS` |
+|---|---|---|---|
+| production | `production_env_db_1` | `selv-backups` | empty |
+| test | `test_env_db_1` | `selv-test-backups` | `selv-backups` |
+
+The other settings keep the values of `backup.config.example`. Dev is not running; when it is set up
+again it gets a row of its own, with `PROTECTED_BUCKETS="selv-backups"`.
+
 ## AWS setup
 
 The EC2 instance role of the server needs this policy for its own bucket, in addition to anything
@@ -61,7 +72,7 @@ else the server uses:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "TestBackupsUploadAndRead",
+      "Sid": "DbBackupsUploadAndRead",
       "Effect": "Allow",
       "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload"],
       "Resource": "arn:aws:s3:::<backup bucket>/*"
@@ -87,7 +98,8 @@ The folder is copied to the server by hand; no Jenkins job deploys it.
 
 1. Copy this folder to the server, for example:
    `scp -r deployment/shared/db_backup <host>:~/db_backup`
-2. Create the config and set every value, at least `S3_BUCKET`:
+2. Create the config and set the values for the server from
+   [Settings per environment](#settings-per-environment):
    `cp ~/db_backup/backup.config.example ~/db_backup/backup.config`
 3. Check that the instance role works on its own:
    `AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_CONFIG_FILE=/dev/null ~/.local/bin/aws sts get-caller-identity --region eu-west-1`
