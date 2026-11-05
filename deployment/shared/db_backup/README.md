@@ -78,7 +78,7 @@ With `KEEP_LOCAL_COPIES=true` the zip of every successful backup also stays on t
 - Manual copies are never removed, like `manual/` in S3. Delete them by hand when they are no
   longer needed.
 - A copy is kept only if `MIN_FREE_GB` plus the size of one more zip is still free with it on
-  disk, so that the next run passes its free-space check. Otherwise the log says
+  disk, so kept copies never take the space the next backup needs. Otherwise the log says
   `WARN local copy not kept`, the copy is removed, and the backup still counts as successful,
   since it is in S3.
 - A copy that cannot be removed when it expires is logged with `WARN` and does not stop the backup.

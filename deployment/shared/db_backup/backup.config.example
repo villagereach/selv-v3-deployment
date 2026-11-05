@@ -40,7 +40,8 @@ VERIFY_DUMP=true
 # true: also keep each uploaded zip on this server, in LOCAL_DIR/<tier>/. A copy is kept only if
 # MIN_FREE_GB plus the size of one more zip is still free with it on disk.
 KEEP_LOCAL_COPIES=false
-# Empty means local/ next to the scripts. Must be an absolute path on the same filesystem as work/.
+# Empty means local/ next to the scripts. Otherwise an absolute path to a folder used only for these
+# copies (it is set to mode 700), on the same filesystem as work/.
 LOCAL_DIR=
 # Kept daily, weekly and monthly copies older than this many days, counted from the date in the file
 # name, are removed at the start of every run, also while KEEP_LOCAL_COPIES is false. Manual copies

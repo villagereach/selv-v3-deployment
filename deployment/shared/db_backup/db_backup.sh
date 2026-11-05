@@ -233,8 +233,8 @@ remote=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$key" --query Conten
 kept=none
 if [ "$KEEP_LOCAL_COPIES" = true ]; then
   # The zip already takes its space in the work directory, so this is the free space with it kept.
-  # It has to leave room for the next run's zip on top of MIN_FREE_GB, or a kept copy could make the
-  # next run fail its free-space check and send nothing to S3.
+  # It has to leave room for the next run's zip on top of MIN_FREE_GB, so kept copies never take the
+  # space the next backup needs.
   free_kb=$(free_kb)
   if [ "$free_kb" -lt $((MIN_FREE_GB * 1024 * 1024 + bytes / 1024)) ]; then
     log "WARN local copy not kept: $((free_kb / 1024 / 1024)) GB free with it, need MIN_FREE_GB=$MIN_FREE_GB plus one more zip"
