@@ -6,7 +6,7 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
     cp ../../credentials/${CREDENTIALS_SUB_DIRECTORY}/.env-restore ./.env-restore
 
     echo "Restoring database from the latest backup"
-    LATEST_BACKUP_NAME=`aws s3 ls $BUCKET_NAME --recursive | sort | tail -n 1 | awk '{print $4}'`
+    LATEST_BACKUP_NAME=`aws s3 ls $BUCKET_NAME --recursive | awk '$4 ~ /\.sql\.zip$/' | sort | tail -n 1 | awk '{print $4}'`
 
     echo "LATEST BACKUP FILE FROM S3 - $LATEST_BACKUP_NAME"
     if [ -z "$LATEST_BACKUP_NAME" ]; then
