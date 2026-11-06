@@ -44,11 +44,11 @@ KEEP_LOCAL_COPIES=false
 # copies (it is set to mode 700), on the same filesystem as work/.
 LOCAL_DIR=
 # Kept daily, weekly and monthly copies older than this many days, counted from the date in the file
-# name, are removed at the start of every run, also while KEEP_LOCAL_COPIES is false. Manual copies
-# are never removed.
+# name, are removed at the start of every run, also while KEEP_LOCAL_COPIES is false. Empty means no
+# limit: that tier is never removed. Manual copies are never removed.
 LOCAL_KEEP_DAYS_DAILY=7
 LOCAL_KEEP_DAYS_WEEKLY=35
-LOCAL_KEEP_DAYS_MONTHLY=365
+LOCAL_KEEP_DAYS_MONTHLY=
 # A run is stopped after this long (timeout(1) duration).
 MAX_RUNTIME=6h
 

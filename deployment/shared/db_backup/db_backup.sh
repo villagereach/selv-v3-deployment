@@ -36,7 +36,8 @@ MODE="$1"
 # shellcheck source-path=SCRIPTDIR source=backup.config.example
 . "$CONFIG_FILE"
 : "${KEEP_LOCAL_COPIES:=false}" "${LOCAL_DIR:=$BASE_DIR/local}"
-: "${LOCAL_KEEP_DAYS_DAILY:=7}" "${LOCAL_KEEP_DAYS_WEEKLY:=35}" "${LOCAL_KEEP_DAYS_MONTHLY:=365}"
+# Unset falls back to these; set but empty means no limit for that tier.
+: "${LOCAL_KEEP_DAYS_DAILY=7}" "${LOCAL_KEEP_DAYS_WEEKLY=35}" "${LOCAL_KEEP_DAYS_MONTHLY=}"
 
 for var in POSTGRES_CONTAINER_NAME DATABASE_NAME DATABASE_USER S3_BUCKET AWS_REGION AWS_CLI \
            BACKUP_NAME_PREFIX DAY_OF_MONTHLY_BACKUP DAY_OF_WEEKLY_BACKUP MIN_FREE_GB MIN_BACKUP_MB; do
@@ -50,6 +51,7 @@ for var in VERIFY_DUMP AWS_USE_INSTANCE_ROLE KEEP_LOCAL_COPIES; do
 done
 for var in DAY_OF_MONTHLY_BACKUP DAY_OF_WEEKLY_BACKUP MIN_FREE_GB MIN_BACKUP_MB \
            LOCAL_KEEP_DAYS_DAILY LOCAL_KEEP_DAYS_WEEKLY LOCAL_KEEP_DAYS_MONTHLY; do
+  [ -n "${!var}" ] || continue
   case "${!var}" in
     *[!0-9]*) fail "$var must be a whole number, got '${!var}'" ;;
   esac
@@ -158,13 +160,14 @@ trap 'log "stopped by a signal"; exit 143' INT TERM
 
 # Removes kept copies older than their tier's LOCAL_KEEP_DAYS_*, by the date in the file name rather
 # than the mtime, which copying the folder can reset. Runs also while KEEP_LOCAL_COPIES is false, so
-# turning it off lets the copies age out. manual/ is never pruned.
+# turning it off lets the copies age out. manual/ and tiers without a limit are never pruned.
 prune_local() {
   local tier days_var file base day epoch age today_epoch
   today_epoch=$(date -u -d "$today" +%s)
   for tier in daily weekly monthly; do
     [ -d "$LOCAL_DIR/$tier" ] || continue
     days_var="LOCAL_KEEP_DAYS_${tier^^}"
+    [ -n "${!days_var}" ] || continue
     for file in "$LOCAL_DIR/$tier"/*; do
       [ -f "$file" ] || continue
       base="${file##*/}"

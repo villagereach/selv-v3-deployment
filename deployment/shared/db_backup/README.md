@@ -23,7 +23,7 @@ in `backup.config` (see [Settings per environment](#settings-per-environment)).
   |---|---|---|
   | `daily/` | scheduled run, most days | lifecycle rule, 7 days |
   | `weekly/` | scheduled run on `DAY_OF_WEEKLY_BACKUP` | lifecycle rule, 35 days |
-  | `monthly/` | scheduled run on `DAY_OF_MONTHLY_BACKUP` | lifecycle rule, 365 days |
+  | `monthly/` | scheduled run on `DAY_OF_MONTHLY_BACKUP` | lifecycle rule if one is set, otherwise forever |
   | `manual/` | `backupctl run` | until deleted by hand |
 
 - The scripts never delete anything in S3. Expiry is done by lifecycle rules on the bucket, so the
@@ -72,9 +72,10 @@ With `KEEP_LOCAL_COPIES=true` the zip of every successful backup also stays on t
   start otherwise.
 - At the start of every run, before the free-space check, daily, weekly and monthly copies older
   than `LOCAL_KEEP_DAYS_DAILY` (7), `LOCAL_KEEP_DAYS_WEEKLY` (35) and `LOCAL_KEEP_DAYS_MONTHLY`
-  (365) days are removed. The age counts from the date in the file name. This also runs while
-  `KEEP_LOCAL_COPIES=false`, so copies left from before age out. Files without a date in the name
-  are left in place and logged.
+  (empty) days are removed. An empty value means no limit, so by default monthly copies are kept
+  for good; set a number of days to limit them. The age counts from the date in the file name. This
+  also runs while `KEEP_LOCAL_COPIES=false`, so copies left from before age out. Files without a
+  date in the name are left in place and logged.
 - Manual copies are never removed, like `manual/` in S3. Delete them by hand when they are no
   longer needed.
 - A copy is kept only if `MIN_FREE_GB` plus the size of one more zip is still free with it on
@@ -82,9 +83,11 @@ With `KEEP_LOCAL_COPIES=true` the zip of every successful backup also stays on t
   `WARN local copy not kept`, the copy is removed, and the backup still counts as successful,
   since it is in S3.
 - A copy that cannot be removed when it expires is logged with `WARN` and does not stop the backup.
-- Space needed: a copy goes once it is older than its limit, so up to 7 daily, 6 weekly and 13
-  monthly copies stay, 26 zips plus manual copies. With a 4.3 GB zip that is about 112 GB, on top
-  of `MIN_FREE_GB` and one more zip.
+- Space needed: a copy goes once it is older than its limit, so up to 7 daily and 6 weekly copies
+  stay, 13 zips, about 56 GB with a 4.3 GB zip. Monthly copies without a limit and manual copies
+  add one zip each and are never removed, so the total grows by about 4.3 GB a month. All of it
+  comes on top of `MIN_FREE_GB` and one more zip; once the disk is full, copies are no longer kept
+  (see above) and `backupctl status` warns.
 - `backupctl status` shows the number and size of the copies per tier.
 
 ## AWS setup
@@ -114,7 +117,7 @@ Lifecycle rules on the bucket:
 
 - `daily/`: expire current versions after 7 days
 - `weekly/`: expire current versions after 35 days
-- `monthly/`: expire current versions after 365 days
+- `monthly/`: optional, expire after the agreed period; without a rule monthly backups stay forever
 - whole bucket: delete incomplete multipart uploads after 7 days, with no expiry action
 
 ## Install on a server
