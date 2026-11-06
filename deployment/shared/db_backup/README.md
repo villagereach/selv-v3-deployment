@@ -35,8 +35,10 @@ in `backup.config` (see [Settings per environment](#settings-per-environment)).
   and either runs the backup or only records the tick and logs `SKIP`. A missing or unreadable switch
   file counts as off. A lock prevents two backups at the same time.
 - The Jenkins wipe of test restores from `BUCKET_NAME` of the test `settings.env`, which is
-  `selv-backups`, the bucket production writes. It takes the newest file under any prefix,
+  `selv-prod-backups`, the bucket production writes. It takes the newest file under any prefix,
   `manual/` included, so a manual backup on production is what the next wipe restores.
+- `selv-backups` holds the backups of the old `backup_database` scripts, in flat keys without
+  prefixes. Nothing writes to it any more and it has no lifecycle rules; it is kept as an archive.
 
 ## Files
 
@@ -56,11 +58,12 @@ owns the folder (`ubuntu`), never with sudo: files created by root would break l
 
 | Server | `POSTGRES_CONTAINER_NAME` | `S3_BUCKET` | `PROTECTED_BUCKETS` | `KEEP_LOCAL_COPIES` |
 |---|---|---|---|---|
-| production | `production_env_db_1` | `selv-backups` | empty | `true` |
-| test | `test_env_db_1` | `selv-test-backups` | `selv-backups` | `false` |
+| production | `production_env_db_1` | `selv-prod-backups` | `selv-backups` | `true` |
+| test | `test_env_db_1` | `selv-test-backups` | `selv-backups selv-prod-backups` | `false` |
 
-The other settings keep the values of `backup.config.example`, whose `PROTECTED_BUCKETS="selv-backups"`
-production alone clears. Dev is not running; when it is set up again it gets a row of its own.
+The other settings keep the values of `backup.config.example`, which protects both production
+buckets; production protects only the archive. Dev is not running; when it is set up again it gets
+a row of its own.
 
 ## Local copies
 
