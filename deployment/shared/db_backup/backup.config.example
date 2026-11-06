@@ -1,8 +1,9 @@
 # Settings for db_backup.sh and backupctl. Copy this file to backup.config next to the scripts
 # and adjust it for the server. backup.config stays on the server and is not committed.
+# The values for each environment are in the table in README.md.
 
 # Database container and database
-POSTGRES_CONTAINER_NAME=test_env_db_1
+POSTGRES_CONTAINER_NAME="<database container of this server>"
 DATABASE_NAME=open_lmis
 DATABASE_USER=postgres
 
@@ -13,8 +14,10 @@ S3_BUCKET="<backup bucket of this server>"
 AWS_REGION=eu-west-1
 
 # Optional: buckets the script refuses to write to, separated by spaces (a guard against a wrong
-# S3_BUCKET). selv-backups is the bucket the Jenkins wipe of test restores from.
-PROTECTED_BUCKETS="selv-backups"
+# S3_BUCKET). selv-prod-backups is written by production only, and the Jenkins wipe restores from
+# it; selv-backups is the archive of the old backup scripts, written by nothing. Keep both here on
+# every other server; production sets PROTECTED_BUCKETS="selv-backups".
+PROTECTED_BUCKETS="selv-backups selv-prod-backups"
 
 # true: use only the EC2 instance role and ignore AWS credential files and key variables.
 # false: use the normal AWS CLI lookup.
@@ -35,6 +38,18 @@ MIN_FREE_GB=10
 MIN_BACKUP_MB=100
 # Read the whole zip back and check pg_dump's completion line before uploading.
 VERIFY_DUMP=true
+# true: also keep each uploaded zip on this server, in LOCAL_DIR/<tier>/. A copy is kept only if
+# MIN_FREE_GB plus the size of one more zip is still free with it on disk.
+KEEP_LOCAL_COPIES=false
+# Empty means local/ next to the scripts. Otherwise an absolute path to a folder used only for these
+# copies (it is set to mode 700), on the same filesystem as work/.
+LOCAL_DIR=
+# Kept daily, weekly and monthly copies older than this many days, counted from the date in the file
+# name, are removed at the start of every run, also while KEEP_LOCAL_COPIES is false. Empty means no
+# limit: that tier is never removed. Manual copies are never removed.
+LOCAL_KEEP_DAYS_DAILY=7
+LOCAL_KEEP_DAYS_WEEKLY=35
+LOCAL_KEEP_DAYS_MONTHLY=
 # A run is stopped after this long (timeout(1) duration).
 MAX_RUNTIME=6h
 

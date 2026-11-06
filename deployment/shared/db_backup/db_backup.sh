@@ -9,8 +9,9 @@
 # pg_dump output is streamed out of the database container straight into the zip on the host,
 # so nothing is written inside the container and no uncompressed copy is kept. The zip holds one
 # plain SQL entry, the format deployment/shared/restore.sh expects. Nothing is uploaded unless the
-# dump and the checks pass, and every failure exits non-zero. On exit the local zip is removed and
-# an unfinished pg_dump is ended in the database, because it would otherwise run on to the end.
+# dump and the checks pass, and every failure exits non-zero. On exit the local zip is removed, unless
+# KEEP_LOCAL_COPIES keeps it in LOCAL_DIR, and an unfinished pg_dump is ended in the database, because
+# it would otherwise run on to the end.
 # Run it through backupctl, as the backup user. Settings come from backup.config next to this
 # script (see backup.config.example).
 
@@ -34,18 +35,23 @@ MODE="$1"
 [ -r "$CONFIG_FILE" ] || fail "config file $CONFIG_FILE not found (copy backup.config.example)"
 # shellcheck source-path=SCRIPTDIR source=backup.config.example
 . "$CONFIG_FILE"
+: "${KEEP_LOCAL_COPIES:=false}" "${LOCAL_DIR:=$BASE_DIR/local}"
+# Unset falls back to these; set but empty means no limit for that tier.
+: "${LOCAL_KEEP_DAYS_DAILY=7}" "${LOCAL_KEEP_DAYS_WEEKLY=35}" "${LOCAL_KEEP_DAYS_MONTHLY=}"
 
 for var in POSTGRES_CONTAINER_NAME DATABASE_NAME DATABASE_USER S3_BUCKET AWS_REGION AWS_CLI \
            BACKUP_NAME_PREFIX DAY_OF_MONTHLY_BACKUP DAY_OF_WEEKLY_BACKUP MIN_FREE_GB MIN_BACKUP_MB; do
   [ -n "${!var:-}" ] || fail "$var is not set in $CONFIG_FILE"
 done
-for var in VERIFY_DUMP AWS_USE_INSTANCE_ROLE; do
+for var in VERIFY_DUMP AWS_USE_INSTANCE_ROLE KEEP_LOCAL_COPIES; do
   case "${!var:-true}" in
     true|false) ;;
     *) fail "$var must be true or false, got '${!var}'" ;;
   esac
 done
-for var in DAY_OF_MONTHLY_BACKUP DAY_OF_WEEKLY_BACKUP MIN_FREE_GB MIN_BACKUP_MB; do
+for var in DAY_OF_MONTHLY_BACKUP DAY_OF_WEEKLY_BACKUP MIN_FREE_GB MIN_BACKUP_MB \
+           LOCAL_KEEP_DAYS_DAILY LOCAL_KEEP_DAYS_WEEKLY LOCAL_KEEP_DAYS_MONTHLY; do
+  [ -n "${!var}" ] || continue
   case "${!var}" in
     *[!0-9]*) fail "$var must be a whole number, got '${!var}'" ;;
   esac
@@ -56,6 +62,10 @@ done
   fail "DAY_OF_MONTHLY_BACKUP must be between 1 and 28"
 [ "$DAY_OF_WEEKLY_BACKUP" -ge 1 ] && [ "$DAY_OF_WEEKLY_BACKUP" -le 7 ] ||
   fail "DAY_OF_WEEKLY_BACKUP must be between 1 and 7"
+case "$LOCAL_DIR" in
+  /*) ;;
+  *) fail "LOCAL_DIR must be an absolute path, got '$LOCAL_DIR'" ;;
+esac
 
 # One timestamp for every date field, so a run that starts at midnight cannot mix two days.
 now=$(date -u +%s)
@@ -110,6 +120,13 @@ end_dumps() {
 }
 
 mkdir -p "$WORK_DIR"
+if [ "$KEEP_LOCAL_COPIES" = true ]; then
+  mkdir -p "$LOCAL_DIR" || fail "cannot create LOCAL_DIR $LOCAL_DIR"
+  chmod 700 "$LOCAL_DIR" || fail "cannot restrict LOCAL_DIR $LOCAL_DIR to its owner"
+  # Kept copies are moved out of work/, which takes no extra space only within one filesystem.
+  [ "$(stat -c %d "$LOCAL_DIR")" = "$(stat -c %d "$WORK_DIR")" ] ||
+    fail "LOCAL_DIR $LOCAL_DIR must be on the same filesystem as $WORK_DIR"
+fi
 exec 8> "$WORK_DIR/.lock"
 flock -n 8 || fail "another backup is running (lock $WORK_DIR/.lock)"
 
@@ -141,7 +158,43 @@ cleanup() {
 trap cleanup EXIT
 trap 'log "stopped by a signal"; exit 143' INT TERM
 
-free_kb=$(df -Pk "$WORK_DIR" | awk 'NR == 2 { print $4 }')
+# Removes kept copies older than their tier's LOCAL_KEEP_DAYS_*, by the date in the file name rather
+# than the mtime, which copying the folder can reset. Runs also while KEEP_LOCAL_COPIES is false, so
+# turning it off lets the copies age out. manual/ and tiers without a limit are never pruned.
+prune_local() {
+  local tier days_var file base day epoch age today_epoch
+  today_epoch=$(date -u -d "$today" +%s)
+  for tier in daily weekly monthly; do
+    [ -d "$LOCAL_DIR/$tier" ] || continue
+    days_var="LOCAL_KEEP_DAYS_${tier^^}"
+    [ -n "${!days_var}" ] || continue
+    for file in "$LOCAL_DIR/$tier"/*; do
+      [ -f "$file" ] || continue
+      base="${file##*/}"
+      day="${base#"${BACKUP_NAME_PREFIX}_"}"
+      day="${day:0:10}"
+      epoch=""
+      if [ "$base" != "${base#"${BACKUP_NAME_PREFIX}_"}" ] && [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        epoch=$(date -u -d "$day" +%s 2>/dev/null) || epoch=""
+      fi
+      if [ -z "$epoch" ]; then
+        log "local copy $file has no date in its name, left in place"
+        continue
+      fi
+      age=$(( (today_epoch - epoch) / 86400 ))
+      [ "$age" -gt "${!days_var}" ] || continue
+      if rm -f -- "$file"; then
+        log "removed local copy $file: $age days old, $tier copies are kept ${!days_var} days"
+      else
+        log "WARN could not remove local copy $file"
+      fi
+    done
+  done
+}
+prune_local
+
+free_kb() { df -Pk "$WORK_DIR" | awk 'NR == 2 { print $4 }'; }
+free_kb=$(free_kb)
 [ "$free_kb" -ge $((MIN_FREE_GB * 1024 * 1024)) ] ||
   fail "only $((free_kb / 1024 / 1024)) GB free in $WORK_DIR, need $MIN_FREE_GB GB"
 
@@ -180,7 +233,22 @@ remote=$(aws s3api head-object --bucket "$S3_BUCKET" --key "$key" --query Conten
   fail "cannot read back s3://$S3_BUCKET/$key"
 [ "$remote" = "$bytes" ] || fail "size mismatch for s3://$S3_BUCKET/$key: local $bytes, S3 $remote"
 
-log "OK: $tier backup s3://$S3_BUCKET/$key, $bytes bytes, $(($(date -u +%s) - started)) s"
+kept=none
+if [ "$KEEP_LOCAL_COPIES" = true ]; then
+  # The zip already takes its space in the work directory, so this is the free space with it kept.
+  # It has to leave room for the next run's zip on top of MIN_FREE_GB, so kept copies never take the
+  # space the next backup needs.
+  free_kb=$(free_kb)
+  if [ "$free_kb" -lt $((MIN_FREE_GB * 1024 * 1024 + bytes / 1024)) ]; then
+    log "WARN local copy not kept: $((free_kb / 1024 / 1024)) GB free with it, need MIN_FREE_GB=$MIN_FREE_GB plus one more zip"
+  elif mkdir -p "$LOCAL_DIR/$tier" && mv "$part" "$LOCAL_DIR/$tier/$name"; then
+    kept="$LOCAL_DIR/$tier/$name"
+  else
+    log "WARN local copy not kept: could not move it to $LOCAL_DIR/$tier"
+  fi
+fi
+
+log "OK: $tier backup s3://$S3_BUCKET/$key, $bytes bytes, $(($(date -u +%s) - started)) s, local copy: $kept"
 if [ -n "${BACKUP_RESULT_FILE:-}" ]; then
-  printf 'tier=%s key=%s bytes=%s\n' "$tier" "$key" "$bytes" > "$BACKUP_RESULT_FILE"
+  printf 'tier=%s key=%s bytes=%s local=%s\n' "$tier" "$key" "$bytes" "$kept" > "$BACKUP_RESULT_FILE"
 fi
