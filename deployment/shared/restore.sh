@@ -11,9 +11,9 @@ then
 
     FILE_COUNT=`unzip -l backup_file.sql.zip | tail -1 | awk '{printf $2}'`
 
-    if [ "$FILE_COUNT" -gt 1 ]
+    if [ "$FILE_COUNT" != 1 ]
     then
-        echo "More than one file in zip" >&2
+        echo "Expected one file in the zip, found: $FILE_COUNT" >&2
         exit 1
     fi
 
@@ -31,7 +31,7 @@ then
     on_exit() {
         local rc=$?
         rm -f "$load_log"
-        [ "$rc" -eq 0 ] || echo "Restore failed: the services on $DOCKER_HOST stay down until the next successful wipe" >&2
+        [ "$rc" -eq 0 ] || echo "Restore failed: the services on $DOCKER_HOST are stopped" >&2
     }
     trap on_exit EXIT
 

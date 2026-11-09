@@ -3,7 +3,10 @@
 if [ "$KEEP_OR_WIPE" == "wipe" ]; then
     export $(grep -v '^#' settings.env | grep -v '.*=.* .*' | grep -v '.*\..*=' | xargs)
     
-    cp ../../credentials/${CREDENTIALS_SUB_DIRECTORY}/.env-restore ./.env-restore
+    if ! cp ../../credentials/${CREDENTIALS_SUB_DIRECTORY}/.env-restore ./.env-restore; then
+        echo "No .env-restore in credentials/${CREDENTIALS_SUB_DIRECTORY}: nothing restored" >&2
+        exit 1
+    fi
 
     echo "Restoring database from the latest backup"
     LATEST_BACKUP_NAME=`aws s3 ls $BUCKET_NAME --recursive | awk '$4 ~ /\.sql\.zip$/' | sort | tail -n 1 | awk '{print $4}'`
@@ -28,7 +31,7 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
     fi
     # Before the services start, so they never run on production's users, contacts and secrets
     if ! ../shared/after_restore.sh; then
-        echo "Post-restore steps failed: the services stay down until the next successful wipe" >&2
+        echo "Post-restore steps failed: the services are stopped; redeploy with wipe, not keep, which would start them on production's users and secrets" >&2
         rm -f ./.env-restore
         exit 1
     fi
