@@ -21,8 +21,16 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
         exit 1
     fi
 
-    ../shared/restore.sh
-    ../shared/after_restore.sh
+    if ! ../shared/restore.sh; then
+        echo "Database restore failed" >&2
+        rm -f backup_file.sql.zip ./.env-restore
+        exit 1
+    fi
+    if ! ../shared/after_restore.sh; then
+        echo "Post-restore steps failed" >&2
+        rm -f ./.env-restore
+        exit 1
+    fi
     rm -f ./.env-restore
 else
     ../shared/restart.sh $1
