@@ -26,12 +26,17 @@ if [ "$KEEP_OR_WIPE" == "wipe" ]; then
         rm -f backup_file.sql.zip ./.env-restore
         exit 1
     fi
+    # Before the services start, so they never run on production's users, contacts and secrets
     if ! ../shared/after_restore.sh; then
-        echo "Post-restore steps failed" >&2
+        echo "Post-restore steps failed: the services stay down until the next successful wipe" >&2
         rm -f ./.env-restore
         exit 1
     fi
     rm -f ./.env-restore
+    if ! ../shared/restart.sh; then
+        echo "Restart after the restore failed" >&2
+        exit 1
+    fi
 else
     ../shared/restart.sh $1
 fi

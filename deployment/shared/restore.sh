@@ -65,8 +65,8 @@ then
         exit 1
     fi
     echo "Database load finished; $(grep -cE "$missing_role" "$load_log" || true) grants to roles missing on this server skipped"
-
-    ../shared/restart.sh
+    # The services stay stopped: the caller starts them with restart.sh, after anything that has to
+    # change in the restored data first.
 else
     echo "Missing reference backup zip file" >&2
     exit 1
