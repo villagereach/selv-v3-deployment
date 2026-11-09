@@ -35,12 +35,14 @@ then
     }
     trap on_exit EXIT
 
-    docker container stop $(docker container ls -aq)
+    # Only this environment's services: other containers on the host (the monitoring agents) keep
+    # running, and FORCE ends their sessions on the database.
+    /usr/local/bin/docker-compose stop
 
     docker start ${POSTGRES_CONTAINER_NAME}
 
     # docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "SELECT pg_drop_replication_slot('debezium');"
-    docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE ${DATABASE_NAME};"
+    docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE IF EXISTS ${DATABASE_NAME} WITH (FORCE);"
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "CREATE DATABASE ${DATABASE_NAME};"
 
     docker exec ${POSTGRES_CONTAINER_NAME} bash -o pipefail -c "python3 -c 'import shutil, sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); shutil.copyfileobj(z.open(z.namelist()[0]), sys.stdout.buffer, 1 << 24)' /tmp/backup_file.sql.zip | psql -U postgres -d ${DATABASE_NAME}" 2>&1 | tee "$load_log"
