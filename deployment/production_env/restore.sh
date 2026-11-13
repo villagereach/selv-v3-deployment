@@ -6,4 +6,4 @@ export DOCKER_CERT_PATH="${PWD}/../../credentials/production_env"
 
 /usr/local/bin/docker-compose pull
 
-../shared/restore.sh
+../shared/restore.sh && ../shared/restart.sh

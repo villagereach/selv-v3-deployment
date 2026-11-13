@@ -19,7 +19,10 @@ UPDATE auth.oauth_client_details SET clientsecret = '${SERVICE_CLIENT_SECRET}' W
 UPDATE auth.oauth_client_details SET clientsecret = '${CLIENT_SECRET}' WHERE clientid = '${CLIENT_USERNAME}';
 UPDATE auth.oauth_client_details SET redirecturi = '${SUPERSET_CLIENT_REDIRECT_URI}' WHERE clientid = '${SUPERSET_CLIENT}';"
 
-docker exec -i $POSTGRES_CONTAINER_NAME psql -U $POSTGRES_USER -d $DATABASE_NAME -c "$sql"
+if ! docker exec -i $POSTGRES_CONTAINER_NAME psql -v ON_ERROR_STOP=1 -U $POSTGRES_USER -d $DATABASE_NAME -c "$sql"; then
+  echo "Post-restore updates failed: passwords, contact details and client secrets may still be production's" >&2
+  exit 1
+fi
 
 # The read-only role postgres_exporter logs in as (monitoring/alloy/README.md).
 # A restore keeps cluster roles (it drops and recreates only the database), but

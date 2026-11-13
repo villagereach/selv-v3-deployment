@@ -11,10 +11,10 @@ then
 
     FILE_COUNT=`unzip -l backup_file.sql.zip | tail -1 | awk '{printf $2}'`
 
-    if [ "$FILE_COUNT" -gt 1 ]
+    if [ "$FILE_COUNT" != 1 ]
     then
-        echo "More than one file in zip"
-        exit 0;
+        echo "Expected one file in the zip, found: $FILE_COUNT" >&2
+        exit 1
     fi
 
     # Load the dump on the database host: streaming 25 GB over docker exec from Jenkins gets cut off
@@ -24,20 +24,52 @@ then
     echo "Docker host - $DOCKER_HOST"
     echo "POSTGRES_CONTAINER_NAME - $POSTGRES_CONTAINER_NAME"
     echo "DATABASE_NAME - $DATABASE_NAME"
-    
-    docker container stop $(docker container ls -aq)
+
+    load_log=$(mktemp)
+    # From here on the services are stopped and the database is replaced, so a failure leaves the
+    # environment down. Restarting it on an empty database would only hide that.
+    on_exit() {
+        local rc=$?
+        rm -f "$load_log"
+        [ "$rc" -eq 0 ] || echo "Restore failed: the services on $DOCKER_HOST are stopped" >&2
+    }
+    trap on_exit EXIT
+
+    # Only this environment's services: other containers on the host (the monitoring agents) keep
+    # running, and FORCE ends their sessions on the database.
+    /usr/local/bin/docker-compose stop
 
     docker start ${POSTGRES_CONTAINER_NAME}
 
     # docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "SELECT pg_drop_replication_slot('debezium');"
-    docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE ${DATABASE_NAME};"
+    docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE IF EXISTS ${DATABASE_NAME} WITH (FORCE);"
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "CREATE DATABASE ${DATABASE_NAME};"
 
-    docker exec ${POSTGRES_CONTAINER_NAME} bash -o pipefail -c "python3 -c 'import shutil, sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); shutil.copyfileobj(z.open(z.namelist()[0]), sys.stdout.buffer, 1 << 24)' /tmp/backup_file.sql.zip | psql -U postgres -d ${DATABASE_NAME}"
+    docker exec ${POSTGRES_CONTAINER_NAME} bash -o pipefail -c "python3 -c 'import shutil, sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); shutil.copyfileobj(z.open(z.namelist()[0]), sys.stdout.buffer, 1 << 24)' /tmp/backup_file.sql.zip | psql -U postgres -d ${DATABASE_NAME}" 2>&1 | tee "$load_log"
+    load_status=${PIPESTATUS[0]}
     docker exec ${POSTGRES_CONTAINER_NAME} rm -f /tmp/backup_file.sql.zip
-    ../shared/restart.sh
+    if [ "$load_status" -ne 0 ]
+    then
+        echo "Database load failed with exit code $load_status" >&2
+        exit 1
+    fi
+
+    # psql carries on past a failed statement. The production dump grants rights to roles that only
+    # production has, and those grants are expected to fail here; any other error fails the restore.
+    missing_role='ERROR:  role ".*" does not exist$'
+    load_errors=$(grep -E '^ERROR:|^psql:[^ ]+ ERROR:' "$load_log" | grep -vE "$missing_role" || true)
+    if [ -n "$load_errors" ]
+    then
+        echo "Database load reported errors:" >&2
+        echo "$load_errors" >&2
+        exit 1
+    fi
+    echo "Database load finished; $(grep -cE "$missing_role" "$load_log" || true) grants to roles missing on this server skipped"
+    # The services stay stopped: the caller starts them with restart.sh, after anything that has to
+    # change in the restored data first.
 else
-    echo "Missing reference backup zip file"
+    echo "Missing reference backup zip file" >&2
+    exit 1
 fi
 
 
