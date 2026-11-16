@@ -17,8 +17,8 @@ then
         exit 0;
     fi
 
-    unzip backup_file.sql.zip -d tmp_backup && mv tmp_backup/* "backup_file.sql"
-    rm -d tmp_backup
+    # Load the dump on the database host: streaming 25 GB over docker exec from Jenkins gets cut off
+    docker cp backup_file.sql.zip ${POSTGRES_CONTAINER_NAME}:/tmp/backup_file.sql.zip
     rm -f backup_file.sql.zip
 
     echo "Docker host - $DOCKER_HOST"
@@ -33,9 +33,8 @@ then
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "DROP DATABASE ${DATABASE_NAME};"
     docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -c "CREATE DATABASE ${DATABASE_NAME};"
 
-    cat backup_file.sql | docker exec -i ${POSTGRES_CONTAINER_NAME} psql -U postgres -d ${DATABASE_NAME}
-    
-    rm -f backup_file.sql
+    docker exec ${POSTGRES_CONTAINER_NAME} bash -o pipefail -c "python3 -c 'import shutil, sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); shutil.copyfileobj(z.open(z.namelist()[0]), sys.stdout.buffer, 1 << 24)' /tmp/backup_file.sql.zip | psql -U postgres -d ${DATABASE_NAME}"
+    docker exec ${POSTGRES_CONTAINER_NAME} rm -f /tmp/backup_file.sql.zip
     ../shared/restart.sh
 else
     echo "Missing reference backup zip file"

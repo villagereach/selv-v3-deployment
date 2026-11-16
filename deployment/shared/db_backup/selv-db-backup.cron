@@ -1,0 +1,8 @@
+# /etc/cron.d/selv-db-backup, written by "backupctl install". Do not edit it on the server: change
+# CRON_SCHEDULE in backup.config and run "backupctl install" again. Cron ignores a file in /etc/cron.d
+# whose name contains a dot, that is not owned by root or that is group or world writable.
+# The job runs every day. While the backup switch is off it only records the tick and logs SKIP.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+@SCHEDULE@ @USER@ @BASE_DIR@/backupctl cron >> @BASE_DIR@/logs/db_backup.log 2>&1

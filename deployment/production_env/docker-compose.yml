@@ -468,28 +468,6 @@ services:
     logging:
       <<: *logging
 
-  equipment:
-    image: openlmismz/equipment:${OL_EQUIPMENT_VERSION}
-    env_file: settings.env
-    environment:
-      JAVA_OPTS: >-
-        -Xms512m
-        -Xmx512m
-        -Djava.security.egd=file:/dev/./urandom
-        -Dlogging.config=/config/log/logback.xml
-    volumes:
-      - syslog:/var/log
-      - service-config:/config:ro
-    depends_on:
-      service-configuration:
-        condition: service_completed_successfully
-      consul:
-        condition: service_healthy
-      log:
-        condition: service_started
-    logging:
-      <<: *logging
-
   requisition-batch:
     image: openlmismz/requisition-batch:${OL_REQUISITION_BATCH_VERSION}
     env_file: settings.env
