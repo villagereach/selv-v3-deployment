@@ -39,7 +39,8 @@ services:
     env_file: settings.env
     # Predefined container name for scripts located on the server to refresh materialized views
     container_name: production_env_db_1
-    command: postgres -c max_connections=500
+    command: postgres -c max_connections=500 -c shared_buffers=4GB -c effective_cache_size=16GB -c work_mem=32MB -c maintenance_work_mem=512MB
+    shm_size: 1gb
     ports:
       - "5432:5432"
     volumes:
@@ -134,6 +135,17 @@ services:
       #      fulfillment:
       #        condition: service_healthy
       stockmanagement:
+        condition: service_healthy
+    logging:
+      <<: *logging
+
+  openlmis-ui:
+    image: openlmis/openlmis-ui:${OL_UI_VERSION}
+    env_file: settings.env
+    environment:
+      BASE_PATH: /v2
+    depends_on:
+      consul:
         condition: service_healthy
     logging:
       <<: *logging
