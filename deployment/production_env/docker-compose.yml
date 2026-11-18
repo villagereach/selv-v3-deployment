@@ -4,7 +4,6 @@ services:
     build:
       context: ./config
     volumes:
-      - syslog:/var/log
       - service-config:/config
 
   selv-v3-extensions:
@@ -55,38 +54,6 @@ services:
     logging:
       <<: *logging
 
-  log:
-    restart: always
-    image: openlmis/rsyslog:${OL_RSYSLOG_VERSION}
-    volumes:
-      - syslog:/var/log
-    depends_on:
-      service-configuration:
-        condition: service_completed_successfully
-      consul:
-        condition: service_healthy
-    logging:
-      <<: *logging
-
-  scalyr:
-    restart: always
-    image: openlmis/scalyr:${OL_SCALYR_AGENT_VERSION}
-    container_name: scalyr-agent
-    env_file: settings.env
-    volumes:
-      - service-config:/config
-      - /run/docker.sock:/var/scalyr/docker.sock
-      - syslog:/var/log
-      - nginx-log:/var/log/nginx/log
-      - auth-tomcat-log:/var/log/auth-tomcat
-    depends_on:
-      service-configuration:
-        condition: service_completed_successfully
-      consul:
-        condition: service_healthy
-    logging:
-      <<: *logging
-
   redis:
     image: redis:3.2.12
     depends_on:
@@ -126,14 +93,14 @@ services:
       # Services from which data is being taken during logging in
       referencedata:
         condition: service_healthy
-      #      auth:
-      #        condition: service_healthy
-      #      notification:
-      #        condition: service_healthy
-      #      report:
-      #        condition: service_healthy
-      #      fulfillment:
-      #        condition: service_healthy
+      auth:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+      report:
+        condition: service_healthy
+      fulfillment:
+        condition: service_healthy
       stockmanagement:
         condition: service_healthy
     logging:
@@ -165,51 +132,60 @@ services:
   requisition:
     restart: always
     image: openlmis/requisition:${OL_REQUISITION_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "requisition"
     env_file: settings.env
     environment:
+      # logback.configurationFile applies the config from JVM start; the jar's own
+      # logback.xml logs to syslog host "log", and its startup error makes Spring abort.
+      # The same pair is set on every Java service below.
       JAVA_OPTS: >-
         -Xms1024m
         -Xmx1024m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
-    #    healthcheck:
-    #      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-    #      interval: 30s
-    #      timeout: 5s
-    #      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
   referencedata:
     restart: always
     image: openlmis/referencedata:${OL_REFERENCEDATA_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "referencedata"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms1536m
         -Xmx1536m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -221,71 +197,82 @@ services:
   auth:
     restart: always
     image: openlmis/auth:${OL_AUTH_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "auth"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms1024m
         -Xmx1024m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
-    #    healthcheck:
-    #      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-    #      interval: 30s
-    #      timeout: 5s
-    #      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
   notification:
     restart: always
     image: openlmis/notification:${OL_NOTIFICATION_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "notification"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
-    #    healthcheck:
-    #      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-    #      interval: 30s
-    #      timeout: 5s
-    #      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
   fulfillment:
     restart: always
     image: openlmis/fulfillment:${OL_FULFILLMENT_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "fulfillment"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms1024m
         -Xmx1024m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
       - selv-v3-extensions-fulfillment:/extensions
     depends_on:
@@ -295,28 +282,31 @@ services:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
-    #    healthcheck:
-    #      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-    #      interval: 30s
-    #      timeout: 5s
-    #      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
   stockmanagement:
     restart: always
     image: openlmis/stockmanagement:${OL_STOCKMANAGEMENT_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "stockmanagement"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms2048m
         -Xmx2048m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
       - selv-v3-extensions-stockmanagement:/extensions
     depends_on:
@@ -326,8 +316,6 @@ services:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     healthcheck:
       test: "wget --spider http://localhost:8080/actuator/health || exit 1"
       interval: 30s
@@ -338,120 +326,135 @@ services:
 
   report:
     image: openlmismz/selv-v3-report:${SELV_V3_REPORT_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "report"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms2048m
         -Xmx2048m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
-    #    healthcheck:
-    #      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
-    #      interval: 30s
-    #      timeout: 5s
-    #      retries: 20
+    healthcheck:
+      test: "wget --spider http://localhost:8080/actuator/health || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 20
     logging:
       <<: *logging
 
   cce:
     restart: always
     image: openlmis/cce:${OL_CCE_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "cce"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
   buq:
     restart: always
     image: openlmis/buq:${OL_BUQ_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "buq"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
   hapifhir:
     restart: always
     image: openlmis/hapifhir:${OL_HAPIFHIR_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "hapifhir"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
   diagnostics:
     restart: always
     image: openlmis/diagnostics:${OL_DIAGNOSTICS_VERSION}
+    labels:
+      monitoring.scrape: "true"
+      monitoring.port: "8080"
+      monitoring.path: "/actuator/prometheus"
+      monitoring.service: "diagnostics"
     env_file: settings.env
     environment:
       JAVA_OPTS: >-
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -466,17 +469,15 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
@@ -488,23 +489,20 @@ services:
         -Xms512m
         -Xmx512m
         -Djava.security.egd=file:/dev/./urandom
+        -Dlogback.configurationFile=/config/log/logback.xml
         -Dlogging.config=/config/log/logback.xml
     volumes:
-      - syslog:/var/log
       - service-config:/config:ro
     depends_on:
       service-configuration:
         condition: service_completed_successfully
       consul:
         condition: service_healthy
-      log:
-        condition: service_started
     logging:
       <<: *logging
 
 volumes:
   service-config:
-  syslog:
   nginx-log:
   auth-tomcat-log:
   consul-template-log:
